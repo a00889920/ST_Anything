@@ -1,6 +1,6 @@
 //******************************************************************************************
-//  File: PS_Water.cpp
-//  Authors: Dan G Ogorchock & Daniel J Ogorchock (Father and Son)
+//  File: PS_Water_NPN.cpp
+//  Authors: a00889920
 //
 //  Summary:  PS_Water is a class which implements both the SmartThings "Water Sensor" device capability.
 //			  It inherits from the st::PollingSensor class.  The current version uses an analog input to measure the 
@@ -23,6 +23,37 @@
 //
 //			  TODO:  Determine a method to persist the ST Cloud's Polling Interval data
 //
+//
+//      		0-10 Saturated Soil. Occurs for a day or two after irrigation
+// 			10-20 Soil is adequately wet (except coarse sands which are drying out at this range)
+// 			30-60 Usual range to irrigate or water (except heavy clay soils).
+// 			60-100 Usual range to irrigate heavy clay soils
+// 			100-200 Soil is becoming dangerously dry for maximum production. Proceed with caution.
+//
+//
+//
+//      http://www.homautomation.org/2014/06/20/measure-soil-moisture-with-arduino-gardening/
+//      This uses an NPN transistor to only power the sensor when in use to help prolong the life of the sensor,
+//      when current cross over the sensor it can cause corrosion across the probes.
+//
+//      NPN works as a switch to power up the sensor, then we take the readings and turn it off.
+//
+//      https://learn.sparkfun.com/tutorials/transistors/applications-i-switches
+//      https://www.arduino.cc/en/Tutorial/TransistorMotorControl
+//
+//
+//
+//      GND  ---------    NPN     -------------    GND Sensor  -------------Soil Moisture Sensor  --------------------  A0 (Analog)
+//                         |                                                       |
+//                         |                                                       |
+//                  1K Ohm resistor                                                |
+//                         |                                                       |
+//                         |                                                       |
+//                   Any Ditial pin                                             Vcc Sensor
+//                       PIN 7
+//
+//
+//
 //  Change History:
 //
 //    Date        Who            What
@@ -30,6 +61,7 @@
 //    2015-01-03  Dan & Daniel   Original Creation
 //    2015-08-23  Dan			 Added optional alarm limit to constructor
 //    2018-10-17  Dan            Added invertLogic parameter to constructor
+//    2019-11-17  a00889920      Adapted to use NPN to prolong sensor life
 //
 //
 //******************************************************************************************
