@@ -52,15 +52,16 @@
 
 #include <PS_TemperatureHumidity.h> //Implements a Polling Sensor (PS) to measure Temperature and Humidity via DHT library
 #include <PS_DS18B20_Temperature.h> //Implements a Polling Sesnor (PS) to measure Temperature via DS18B20 libraries
-#include <PS_Water.h>               //Implements a Polling Sensor (PS) to measure presence of water (i.e. leak detector)
-#include <IS_Motion.h>              //Implements an Interrupt Sensor (IS) to detect motion via a PIR sensor
-#include <IS_Contact.h>             //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin
-#include <IS_Smoke.h>               //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin
-#include <IS_DoorControl.h>         //Implements an Interrupt Sensor (IS) and Executor to monitor the status of a digital input pin and control a digital output pin
-#include <IS_Button.h>              //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin for button presses
-#include <EX_Switch.h>              //Implements an Executor (EX) via a digital output to a relay
-#include <EX_Alarm.h>               //Implements Executor (EX)as an Alarm Siren capability via a digital output to a relay
-#include <S_TimedRelay.h>           //Implements a Sensor to control a digital output pin with timing capabilities
+//#include <PS_Water.h>               //Implements a Polling Sensor (PS) to measure presence of water (i.e. leak detector)
+#include <PS_Water_NPN.h>   //Implements a Polling Sensor (PS) to measure presence of water (i.e. leak detector)
+#include <IS_Motion.h>      //Implements an Interrupt Sensor (IS) to detect motion via a PIR sensor
+#include <IS_Contact.h>     //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin
+#include <IS_Smoke.h>       //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin
+#include <IS_DoorControl.h> //Implements an Interrupt Sensor (IS) and Executor to monitor the status of a digital input pin and control a digital output pin
+#include <IS_Button.h>      //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin for button presses
+#include <EX_Switch.h>      //Implements an Executor (EX) via a digital output to a relay
+#include <EX_Alarm.h>       //Implements Executor (EX)as an Alarm Siren capability via a digital output to a relay
+#include <S_TimedRelay.h>   //Implements a Sensor to control a digital output pin with timing capabilities
 
 //*************************************************************************************************
 //NodeMCU v1.0 ESP8266-12e Pin Definitions (makes it much easier as these match the board markings)
@@ -83,6 +84,8 @@
 //******************************************************************************************
 #define PIN_WATER_1 A0 //NodeMCU ESP8266 only has one Analog Input Pin 'A0'
 
+#define PIN_WATER_NPN_1 D8 // NPN for wather sensor
+
 #define PIN_ALARM_1 D0       //SmartThings Capabilty "Alarm"
 #define PIN_SWITCH_1 D1      //SmartThings Capability "Switch"
 #define PIN_CONTACT_1 D2     //SmartThings Capabilty "Contact Sensor"
@@ -91,7 +94,7 @@
 #define PIN_MOTION_1 D5      //SmartThings Capabilty "Motion Sensor" (HC-SR501 PIR Sensor)
 #define PIN_SMOKE_1 D6       //SmartThings Capabilty "Smoke Detector"
 #define PIN_TEMPERATURE_1 D7 //SmartThings Capabilty "Temperature Measurement" (Dallas Semiconductor DS18B20)
-#define PIN_TIMEDRELAY_1 D8  //SmartThings Capability "Relay Switch"
+//#define PIN_TIMEDRELAY_1 D8  //SmartThings Capability "Relay Switch"
 
 //******************************************************************************************
 //ESP8266 WiFi Information
@@ -151,7 +154,7 @@ void setup()
   //           to match your specific use case in the ST Phone Application.
   //******************************************************************************************
   //Polling Sensors
-  static st::PS_Water sensor1(F("water1"), 60, 20, PIN_WATER_1, 200);
+  static st::PS_Water_NPN sensor1(F("water1"), 60 /*get data interval in seconds */, 1 /* interval before and after getting data to turn on/off sensor in seconds*/, 20 /*offset in seconds*/, PIN_WATER_1, PIN_WATER_NPN_1, 200 /*limit*/);
   static st::PS_DS18B20_Temperature sensor2(F("temperature1"), 15, 0, PIN_TEMPERATURE_1, false, 10, 1);
 
   //Interrupt Sensors
@@ -178,6 +181,7 @@ void setup()
   st::Device::debug = true;
   st::PollingSensor::debug = true;
   st::InterruptSensor::debug = true;
+  st::PS_Water_NPN::debug = true;
 
   //*****************************************************************************
   //Initialize the "Everything" Class
