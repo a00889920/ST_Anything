@@ -79,13 +79,14 @@ namespace st
 
 //public
 	//constructor - called in your sketch's global variable declaration section
-	PS_Water::PS_Water(const __FlashStringHelper *name, unsigned int interval, int offset, byte analogInputPin, int limit, bool invertLogic):
+	PS_Water::PS_Water(const __FlashStringHelper *name, unsigned int interval, int offset, byte analogInputPin, int limit, bool invertLogic, byte npnDigitalPin):
 		PollingSensor(name, interval, offset),
 		m_nSensorValue(0),
 		m_nSensorLimit(limit),
 		m_binvertLogic(invertLogic)
 	{
 		setPin(analogInputPin);
+		setNPNPin(npnDigitalPin);
 	}
 	
 	//destructor
@@ -116,6 +117,34 @@ namespace st
 		}
 	}
 	
+	/*
+	// TODO: Update Polling Sensor to allow doing actions in preGetData() and postGetData()
+	// TODO: Add variable to configure how long the delay between methods will be
+	// preGetData() powers the sensor
+	// getData() reads values
+	// postGetData() turns off the sensor
+	
+	  // power the sensor
+	  digitalWrite(NPNSwitchPin, HIGH);
+	  delay(100); //make sure the sensor is powered
+	  // read the value from the sensor:
+	  measure(SoilMoistPin);
+
+	  //stop power
+	  digitalWrite(NPNSwitchPin, LOW);
+
+	  // calculate values
+	  Serial.print ("Average: ");
+	  long averageReading = average();
+	  Serial.println (averageReading);
+
+	  //send back the values
+	  send(msg.set((long int)ceil(averageReading)));
+	  // delay until next measurement (msec)
+	  sleep(SLEEP_TIME);
+	
+	*/
+	
 	//function to get data from sensor and queue results for transfer to ST Cloud
 	void PS_Water::getData()
 	{
@@ -143,5 +172,10 @@ namespace st
 	void PS_Water::setPin(byte pin)
 	{
 		m_nAnalogInputPin=pin;
+	}
+	
+	void PS_Water::setNPNPin(byte pin)
+	{
+		m_nnpnDigitalPin=pin;
 	}
 }
