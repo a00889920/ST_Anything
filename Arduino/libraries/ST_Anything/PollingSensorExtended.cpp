@@ -56,7 +56,7 @@ bool PollingSensorExtended::checkInterval()
 	m_nPreviousTime = millis();
 
 	//determine interval has passed
-	if (m_bState_PreGetData && m_nDeltaTime >= (m_nIntervalPreGetData - m_nIntervalGetData))
+	if (m_bState_PreGetData && m_nDeltaTime >= (m_nIntervalGetData - m_nIntervalPreGetData))
 	{
 		// PreGetData
 		return true;
