@@ -40,7 +40,7 @@ private:
 
 	bool m_bState_PreGetData; //boolean flag to indicate which state polling sensor is in
 	bool m_bState_GetData;	//boolean flag to indicate which state polling sensor is in
-	bool m_bState_PreGetData; //boolean flag to indicate which state polling sensor is in
+	bool m_bState_PostGetData; //boolean flag to indicate which state polling sensor is in
 
 	virtual bool checkInterval(); //returns true and resets m_nDeltaTime if m_nInterval has been reached
 
