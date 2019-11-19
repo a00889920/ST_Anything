@@ -41,7 +41,7 @@ metadata {
 				attributeState("wet", label: "Wet", icon:"st.alarm.water.wet", backgroundColor:"#00a0dc")
 			}
  			tileAttribute("device.lastUpdated", key: "SECONDARY_CONTROL") {
-    				attributeState("default", label:'    Last updated ${currentValue}',icon: "st.Health & Wellness.health9")
+    			attributeState("default", label:'    Last updated ${currentValue}',icon: "st.Health & Wellness.health9")
             }
 		}
         valueTile("rawValue", "device.rawValue", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
