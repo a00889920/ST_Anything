@@ -1,6 +1,6 @@
 //******************************************************************************************
-//  File: ST_Anything_Multiples_ESP8266WiFi.ino
-//  Authors: Dan G Ogorchock & Daniel J Ogorchock (Father and Son)
+//  File: ST_Anything_Multiples_ESP8266WiFi_Water_PNP.ino
+//  Authors: Dan G Ogorchock & Daniel J Ogorchock (Father and Son) and a00889920
 //
 //  Summary:  This Arduino Sketch, along with the ST_Anything library and the revised SmartThings
 //            library, demonstrates the ability of one NodeMCU ESP8266 to
@@ -115,6 +115,7 @@ const unsigned int serverPort = 8090;         // port to run the http server on
 IPAddress hubIp(192, 168, 1, 143);  // hubitat hub ip         //  <---You must edit this line!
 const unsigned int hubPort = 39501; // hubitat hub port
 
+
 //******************************************************************************************
 //st::Everything::callOnMsgSend() optional callback routine.  This is a sniffer to monitor
 //    data being sent to ST.  This allows a user to act on data changes locally within the
@@ -165,7 +166,7 @@ void setup()
   static st::IS_Smoke sensor7(F("smoke1"), PIN_SMOKE_1, HIGH, true, 500);
 
   //Special sensors/executors (uses portions of both polling and executor classes)
-  static st::S_TimedRelay sensor8(F("relaySwitch1"), PIN_TIMEDRELAY_1, LOW, false, 3000, 0, 1);
+  // static st::S_TimedRelay sensor8(F("relaySwitch1"), PIN_TIMEDRELAY_1, LOW, false, 3000, 0, 1);
 
   //Executors
   static st::EX_Alarm executor1(F("alarm1"), PIN_ALARM_1, LOW, true);
@@ -204,13 +205,13 @@ void setup()
   //Add each sensor to the "Everything" Class
   //*****************************************************************************
   st::Everything::addSensor(&sensor1);
-  st::Everything::addSensor(&sensor2);
+/*  st::Everything::addSensor(&sensor2);
   st::Everything::addSensor(&sensor3);
   st::Everything::addSensor(&sensor4);
   st::Everything::addSensor(&sensor5);
   st::Everything::addSensor(&sensor6);
   st::Everything::addSensor(&sensor7);
-  st::Everything::addSensor(&sensor8);
+*/  //st::Everything::addSensor(&sensor8);
 
   //*****************************************************************************
   //Add each executor to the "Everything" Class
