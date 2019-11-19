@@ -59,7 +59,9 @@ public:
 	virtual void beSmart(const String &str);
 
 	//function to get data from sensor and queue results for transfer to ST Cloud
+	virtual void preGetData();
 	virtual void getData();
+	virtual void postGetData();
 
 	//gets
 	inline byte getPin() const { return m_nAnalogInputPin; }
