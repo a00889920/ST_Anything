@@ -44,6 +44,9 @@ metadata {
     				attributeState("default", label:'    Last updated ${currentValue}',icon: "st.Health & Wellness.health9")
             }
 		}
+        valueTile("rawValue", "device.rawValue", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
+			state "rawValue", label:'${currentValue}', unit:"units", backgroundColor:"#ffffff"
+		}
 	}
 }
 
@@ -54,7 +57,17 @@ def parse(String description) {
     def value = parts.length>1?parts[1].trim():null
 	if (name && value) {
         // Update device
-        sendEvent(name: name, value: value)
+        if ((value == "wet") || (value == "dry"))
+        {
+            sendEvent(name: name, value: value)
+            log.debug "value set (${value}) child water sensor"
+        }
+        else
+        {
+            sendEvent(name: "rawValue", value: value)
+            log.debug "value set (${value}) child water sensor"
+        }
+        
         // Update lastUpdated date and time
         def nowDay = new Date().format("MMM dd", location.timeZone)
         def nowTime = new Date().format("h:mm a", location.timeZone)
