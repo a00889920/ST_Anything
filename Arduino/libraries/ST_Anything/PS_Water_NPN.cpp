@@ -74,7 +74,7 @@ namespace st
 
 //public
 //constructor - called in your sketch's global variable declaration section
-PS_Water::PS_Water_NPN(const __FlashStringHelper *name, unsigned int interval, unsigned int intervalPNP, int offset, byte analogInputPin, byte npnDigitalPin, int limit, bool invertLogic) : PollingSensorExtended(name, intervalPNP, interval, intervalPNP, offset),
+PS_Water_NPN::PS_Water_NPN(const __FlashStringHelper *name, unsigned int interval, unsigned int intervalPNP, int offset, byte analogInputPin, byte npnDigitalPin, int limit, bool invertLogic) : PollingSensorExtended(name, intervalPNP, interval, intervalPNP, offset),
 																																															 m_nSensorValue(0),
 																																															 m_nSensorLimit(limit),
 																																															 m_binvertLogic(invertLogic)
@@ -84,12 +84,12 @@ PS_Water::PS_Water_NPN(const __FlashStringHelper *name, unsigned int interval, u
 }
 
 //destructor
-PS_Water::~PS_Water()
+PS_Water_NPN::~PS_Water_NPN()
 {
 }
 
 //SmartThings Shield data handler (receives configuration data from ST - polling interval, and adjusts on the fly)
-void PS_Water::beSmart(const String &str)
+void PS_Water_NPN::beSmart(const String &str)
 {
 	String s = str.substring(str.indexOf(' ') + 1);
 
@@ -101,7 +101,7 @@ void PS_Water::beSmart(const String &str)
 		st::PollingSensorExtended::setPreInterval(1000);
 		st::PollingSensorExtended::setPostInterval(1000);
 
-		if (st::PollingSensor::debug)
+		if (st::PollingSensorExtended::debug)
 		{
 			Serial.print(F("PS_Water_NPN::beSmart set polling interval to "));
 			Serial.println(s.toInt());
@@ -109,7 +109,7 @@ void PS_Water::beSmart(const String &str)
 	}
 	else
 	{
-		if (st::PollingSensor::debug)
+		if (st::PollingSensorExtended::debug)
 		{
 			Serial.print(F("PS_Water_NPN::beSmart cannot convert "));
 			Serial.print(s);
@@ -118,30 +118,37 @@ void PS_Water::beSmart(const String &str)
 	}
 }
 
-void PS_Water::preGetData()
+void PS_Water_NPN::preGetData()
 {
 	// power the sensor
 	digitalWrite(m_nDigitalNPNPin, HIGH);
 
 	if (st::PollingSensorExtended::debug)
 	{
-		Serial.print(F("PS_Water_NPN::Turning NPN on"));
+		Serial.println(F("PS_Water_NPN::Turning NPN on"));
 	}
 }
 
 //function to get data from sensor and queue results for transfer to ST Cloud
-void PS_Water::getData()
+void PS_Water_NPN::getData()
 {
+	if (st::PollingSensorExtended::debug)
+	{
+		Serial.println(F("PS_Water_NPN::Getting Data"));
+	}
+	
 	int m_nSensorValue = analogRead(m_nAnalogInputPin);
 
-	if (st::PollingSensor::debug)
+	if (st::PollingSensorExtended::debug)
 	{
-		Serial.print(F("PS_Water::Analog Pin value is "));
+		Serial.print(F("PS_Water_NPN::Analog Pin value is "));
 		Serial.print(m_nSensorValue);
 		Serial.print(F(" vs limit of "));
 		Serial.println(m_nSensorLimit);
 	}
 
+	Everything::sendSmartString(getName() + " " + m_nSensorValue);
+	
 	//compare the sensor's value is against the limit to determine whether to send "dry" versus "wet".
 	if (m_binvertLogic)
 	{
@@ -153,23 +160,23 @@ void PS_Water::getData()
 	}
 }
 
-void PS_Water::postGetData()
+void PS_Water_NPN::postGetData()
 {
 	//stop power to sensor
 	digitalWrite(m_nDigitalNPNPin, LOW);
 
 	if (st::PollingSensorExtended::debug)
 	{
-		Serial.print(F("PS_Water_NPN::Turning NPN off"));
+		Serial.println(F("PS_Water_NPN::Turning NPN off"));
 	}
 }
 
-void PS_Water::setPin(byte pin)
+void PS_Water_NPN::setPin(byte pin)
 {
 	m_nAnalogInputPin = pin;
 }
 
-void PS_Water::setNPNPin(byte pin)
+void PS_Water_NPN::setNPNPin(byte pin)
 {
 	m_nDigitalNPNPin = pin;
 }
