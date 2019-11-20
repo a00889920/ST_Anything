@@ -43,8 +43,8 @@
 //
 //
 //
-//      GND  ---------    NPN     -------------    GND Sensor  -------------Soil Moisture Sensor  --------------------  A0 (Analog)
-//                         |                                                       |
+// GND  ---- (Collector)  NPN (Emitter) -------- GND Sensor  ----------Soil Moisture Sensor  --------------------  A0 (Analog)
+//                         | (Base)                                                |
 //                         |                                                       |
 //                  1K Ohm resistor                                                |
 //                         |                                                       |
@@ -179,5 +179,6 @@ void PS_Water_NPN::setPin(byte pin)
 void PS_Water_NPN::setNPNPin(byte pin)
 {
 	m_nDigitalNPNPin = pin;
+	pinMode(m_nDigitalNPNPin, OUTPUT);
 }
 } // namespace st
