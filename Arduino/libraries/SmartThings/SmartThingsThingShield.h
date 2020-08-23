@@ -31,6 +31,7 @@
 ///		-2017-02-04  Dan Ogorchock  Modified to be a subclass of new SmartThings base class
 ///		-2017-02-08  Dan Ogorchock  Cleaned up.  Now uses HardwareSerial* objects directly.
 ///     -2017-08-14  Dan Ogorchock  Disabled SoftwareSerial support if compiling ESP32 board
+//      -2020-08-22  a00889920      Added deepSleep() function
 //*******************************************************************************
 #ifndef __SMARTTHINGS_THINGSHIELD_H__
 #define __SMARTTHINGS_THINGSHIELD_H__
@@ -143,11 +144,6 @@ namespace st
 		/// @brief Destructor 
 		//*******************************************************************************
 		virtual ~SmartThingsThingShield();
-
-		//*******************************************************************************
-		/// @brief  Initialize SmartThings Library 
-		//*******************************************************************************
-		virtual void preInit(void) = 0;
 
 		//*******************************************************************************
 		/// @brief  Initialize SmartThings Library 

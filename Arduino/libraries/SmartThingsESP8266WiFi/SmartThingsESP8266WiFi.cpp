@@ -13,7 +13,8 @@
 //  2018-12-10  Dan Ogorchock  Add user selectable host name (repurposing the old shieldType variable)
 //  2019-06-03  Dan Ogorchock  Changed to wait on st_client.available() instead of st_client.connected()
 //  2019-06-25  Dan Ogorchock  Fix default hostname to not use underscore character
-//  2020-08-22  a00889920      Reducing consumed power when using battery and deepSleep
+//  2020-08-22  a00889920	   Added power savings tricks when running on battery for ESP8266
+//  2020-08-22  a00889920	   Moved most serial.println to only be displayed when _isDebugEnabled is true
 //*******************************************************************************
 
 #include "SmartThingsESP8266WiFi.h"
@@ -23,10 +24,32 @@ namespace st
 	//*******************************************************************************
 	// SmartThingsESP8266WiFI Constructor - Static IP
 	//*******************************************************************************
-	SmartThingsESP8266WiFi::SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType, bool enableDebug, int transmitInterval) :
+	SmartThingsESP8266WiFi::SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType, bool enableDebug, int transmitInterval, bool runningOnBattery) :
 		SmartThingsEthernet(localIP, localGateway, localSubnetMask, localDNSServer, serverPort, hubIP, hubPort, callout, shieldType, enableDebug, transmitInterval, false),
-		st_server(serverPort)
+		st_server(serverPort),
+		m_runningOnBattery(runningOnBattery)
 	{
+		if (m_runningOnBattery)
+		{
+			if (_isDebugEnabled) Serial.println("------------ preInit RUNNING_ON_BATTERY_DISABLE_WIFI_WHEN_WAKING_UP");
+		
+			// Disabling WiFi when waking up
+			//
+			// https://www.bakke.online/index.php/2017/05/21/reducing-wifi-power-consumption-on-esp8266-part-2/
+			//
+			// As the WiFi radio is on when the ESP wakes up, we wake up with 70 mA current even if we’re not using the WiFi yet.
+			// To try to reduce this, let’s switch off the WiFi radio at the beginning of the setup() function, keep it off while
+			// we’re reading the sensors, and switch it back on when we are ready to send the results to the server.
+			//
+			// From the experiments, it was found that both WiFi.mode() and WiFi.forceSleepBegin() were required in order to
+			// switch off the radio. The forceSleepBegin() call will set the flags and modes necessary, but the radio will not
+			// actually switch off until control returns to the ESP ROM. To do that we’re adding a delay( 1 ),
+			// but I suppose a yield() would work as well.
+			WiFi.mode(WIFI_OFF);
+  			WiFi.forceSleepBegin();
+  			yield();
+		}
+
 		ssid.toCharArray(st_ssid, sizeof(st_ssid));
 		password.toCharArray(st_password, sizeof(st_password));
 	}
@@ -60,52 +83,33 @@ namespace st
 
 	}
 
- 	//*******************************************************************************
-	/// Pre-Initialize SmartThingsESP8266WiFI Library
-	//*******************************************************************************
-	void SmartThingsESP8266WiFi::preInit(void)
-	{
-		#ifdef RUNNING_ON_BATTERY
-			// Disabling WiFi when waking up
-			//
-			// https://www.bakke.online/index.php/2017/05/21/reducing-wifi-power-consumption-on-esp8266-part-2/
-			//
-			// As the WiFi radio is on when the ESP wakes up, we wake up with 70 mA current even if we’re not using the WiFi yet.
-			// To try to reduce this, let’s switch off the WiFi radio at the beginning of the setup() function, keep it off while
-			// we’re reading the sensors, and switch it back on when we are ready to send the results to the server.
-			//
-			// From the experiments, it was found that both WiFi.mode() and WiFi.forceSleepBegin() were required in order to
-			// switch off the radio. The forceSleepBegin() call will set the flags and modes necessary, but the radio will not
-			// actually switch off until control returns to the ESP ROM. To do that we’re adding a delay( 1 ),
-			// but I suppose a yield() would work as well.
-			WiFi.mode(WIFI_OFF);
-  			WiFi.forceSleepBegin();
-  			delay(1);
-		#endif
-	}
-
- 
 	//*******************************************************************************
 	/// Initialize SmartThingsESP8266WiFI Library
 	//*******************************************************************************
 	void SmartThingsESP8266WiFi::init(void)
 	{
 		if (!st_preExistingConnection) {
-			Serial.println(F(""));
-			Serial.println(F("Initializing ESP8266 WiFi network.  Please be patient..."));
+			if (_isDebugEnabled){
+				Serial.println(F(""));
+				Serial.println(F("Initializing ESP8266 WiFi network.  Please be patient..."));
+			}
 
-			#ifdef RUNNING_ON_BATTERY
+			if(m_runningOnBattery)
+			{
+				if (_isDebugEnabled) Serial.println("------------ init RUNNING_ON_BATTERY_DISABLE_WIFI_WHEN_WAKING_UP");
 				// https://www.bakke.online/index.php/2017/05/21/reducing-wifi-power-consumption-on-esp8266-part-2/
 				// Just before the calls to establish the WiFi connection, we switch the radio back on:
 				// forceSleepWake() will set the correct flags and modes, but the change will not take effect 
   				// until control returns to the ESP ROM, so we add a delay( 1 ) call here as well.				
 				WiFi.forceSleepWake();
-				delay(1);
-			#endif
+				yield();
+			}
 
 			if (st_DHCP == false)
 			{
-				#ifdef RUNNING_ON_BATTERY
+				if(m_runningOnBattery)
+				{
+					if (_isDebugEnabled) Serial.println("------------ RUNNING_ON_BATTERY_DISABLING_NETWORK_PERSISTANCE");
 					// Disabling network persistence
 					//
 					// https://www.bakke.online/index.php/2017/05/22/reducing-wifi-power-consumption-on-esp8266-part-3/
@@ -125,12 +129,15 @@ namespace st
 					//
 					// The good news is that we can disable or enable this persistence by calling WiFi.persistent().
 					WiFi.persistent(false);
-				#endif
+				}
 
 				WiFi.config(st_localIP, st_localGateway, st_localSubnetMask, st_localDNSServer);
 			}
 
-			#ifdef RUNNING_ON_BATTERY
+			if(m_runningOnBattery)
+			{
+				if (_isDebugEnabled) Serial.println("------------ RUNNING_ON_BATTERY_WIFI_QUICK_CONNECT");
+			
 				// https://www.bakke.online/index.php/2017/06/24/esp8266-wifi-power-reduction-avoiding-network-scan/
 
 				// Introducing the RTC and its memory
@@ -173,21 +180,26 @@ namespace st
 
 				if( rtcValid ) {
 					// The RTC data was good, make a quick connection
-					WiFi.begin( WLAN_SSID, WLAN_PASSWD, rtcData.channel, rtcData.ap_mac, true );
+					if (_isDebugEnabled) Serial.println(F("Using RTC data to make a quick connection."));
+					WiFi.begin( st_ssid, st_password, rtcData.channel, rtcData.bssid, true );
 				} else {
 					// The RTC data was not valid, so make a regular connection
-					WiFi.begin( WLAN_SSID, WLAN_PASSWD );
+					if (_isDebugEnabled) Serial.println(F("RTC data is not valid, making a regular connection."));
+					WiFi.begin( st_ssid, st_password );
 				}
-			#else
+			} else {
 				// attempt to connect to WiFi network
 				WiFi.begin(st_ssid, st_password);
-			#endif
+			}
 
-			Serial.print(F("Attempting to connect to WPA SSID: "));
-			Serial.println(st_ssid);
+			if (_isDebugEnabled) {
+				Serial.print(F("Attempting to connect to WPA SSID: "));
+			    Serial.println(st_ssid);
+			}
 		}
 
-		#ifdef RUNNING_ON_BATTERY
+		if(m_runningOnBattery)
+		{
 			// The loop waiting for the WiFi connection to be established becomes a little more complicated
 			// as we’ll have to consider the possibility that the WiFi access point has changed channels,
 			// or that the access point itself has been changed.  So, if we haven’t established a connection
@@ -210,7 +222,7 @@ namespace st
 					delay( 10 );
 					WiFi.forceSleepWake();
 					delay( 10 );
-					WiFi.begin( WLAN_SSID, WLAN_PASSWD );
+					WiFi.begin( st_ssid, st_password );
 				}
 
 				if( retries == 600 ) {
@@ -218,7 +230,7 @@ namespace st
 					WiFi.disconnect( true );
 					delay( 1 );
 					WiFi.mode( WIFI_OFF );
-					ESP.deepSleep( SLEEPTIME, WAKE_RF_DISABLED );
+					ESP.deepSleep( 30 * 1000000, WAKE_RF_DISABLED );
 					return; // Not expecting this to be called, the previous call will never return.
 				}
 
@@ -231,42 +243,44 @@ namespace st
 
 			// Write current connection info back to RTC
 			rtcData.channel = WiFi.channel();
-			memcpy( rtcData.ap_mac, WiFi.BSSID(), 6 ); // Copy 6 bytes of BSSID (AP's MAC address)
+			memcpy( rtcData.bssid, WiFi.BSSID(), 6 ); // Copy 6 bytes of BSSID (AP's MAC address)
 			rtcData.crc32 = calculateCRC32( ((uint8_t*)&rtcData) + 4, sizeof( rtcData ) - 4 );
 			ESP.rtcUserMemoryWrite( 0, (uint32_t*)&rtcData, sizeof( rtcData ) );
 
-		#else
+		} else {
 			while (WiFi.status() != WL_CONNECTED) {
 				Serial.print(F("."));
 				delay(500);	// wait for connection:
 			}
-		#endif
-
-		Serial.println();
+		}
 
 		st_server.begin();
-
-		Serial.println(F(""));
-		Serial.println(F("Enter the following three lines of data into ST App on your phone!"));
-		Serial.print(F("localIP = "));
-		Serial.println(WiFi.localIP());
-		Serial.print(F("serverPort = "));
-		Serial.println(st_serverPort);
-		Serial.print(F("MAC Address = "));
 		String strMAC(WiFi.macAddress());
-		strMAC.replace(":", "");
-		Serial.println(strMAC);
-		Serial.println(F(""));
-		Serial.print(F("SSID = "));
-		Serial.println(st_ssid);
-		Serial.print(F("PASSWORD = "));
-		Serial.println(st_password);
-		Serial.print(F("hubIP = "));
-		Serial.println(st_hubIP);
-		Serial.print(F("hubPort = "));
-		Serial.println(st_hubPort);
-		Serial.print(F("RSSI = "));
-		Serial.println(WiFi.RSSI());
+
+		if (_isDebugEnabled) {
+			Serial.println();
+
+			Serial.println(F(""));
+			Serial.println(F("Enter the following three lines of data into ST App on your phone!"));
+			Serial.print(F("localIP = "));
+			Serial.println(WiFi.localIP());
+			Serial.print(F("serverPort = "));
+			Serial.println(st_serverPort);
+			Serial.print(F("MAC Address = "));
+			strMAC.replace(":", "");
+			Serial.println(strMAC);
+			Serial.println(F(""));
+			Serial.print(F("SSID = "));
+			Serial.println(st_ssid);
+			Serial.print(F("PASSWORD = "));
+			Serial.println(st_password);
+			Serial.print(F("hubIP = "));
+			Serial.println(st_hubIP);
+			Serial.print(F("hubPort = "));
+			Serial.println(st_hubPort);
+			Serial.print(F("RSSI = "));
+			Serial.println(WiFi.RSSI());
+		}
 
 		if (_shieldType == "ESP8266Wifi") {
 			String("ESP8266-" + strMAC).toCharArray(st_devicename, sizeof(st_devicename));
@@ -274,18 +288,24 @@ namespace st
 		else {
 			_shieldType.toCharArray(st_devicename, sizeof(st_devicename));
 		}
-		Serial.print(F("hostName = "));
-		Serial.println(st_devicename);
+
+		if (_isDebugEnabled) {
+			Serial.print(F("hostName = "));
+			Serial.println(st_devicename);
+		}
 
 		WiFi.hostname(st_devicename);
 
-		Serial.println(F(""));
-		Serial.println(F("SmartThingsESP8266WiFI: Intialized"));
-		Serial.println(F(""));
+		if (_isDebugEnabled) {
+			Serial.println(F(""));
+			Serial.println(F("SmartThingsESP8266WiFI: Intialized"));
+			Serial.println(F(""));
 
-		//Turn off Wirelss Access Point
-		Serial.println(F("Disabling ESP8266 WiFi Access Point"));
-		Serial.println(F(""));
+			//Turn off Wirelss Access Point
+			Serial.println(F("Disabling ESP8266 WiFi Access Point"));
+			Serial.println(F(""));
+		}
+
 		WiFi.mode(WIFI_STA);
 
 		RSSIsendInterval = 5000;
@@ -320,12 +340,15 @@ namespace st
 			else if (error == OTA_END_ERROR) Serial.println("End Failed");
 		});
 		ArduinoOTA.begin();
-		Serial.println("ArduinoOTA Ready");
-		Serial.print("IP address: ");
-		Serial.println(WiFi.localIP());
-		Serial.print("ArduionOTA Host Name: ");
-		Serial.println(ArduinoOTA.getHostname());
-		Serial.println();
+
+		if (_isDebugEnabled) {
+			Serial.println("ArduinoOTA Ready");
+			Serial.print("IP address: ");
+			Serial.println(WiFi.localIP());
+			Serial.print("ArduionOTA Host Name: ");
+			Serial.println(ArduinoOTA.getHostname());
+			Serial.println();
+		}
 	}
 
 	//*****************************************************************************
@@ -545,7 +568,8 @@ namespace st
 	//*******************************************************************************
 	void SmartThingsESP8266WiFi::deepSleep(uint64_t time)
 	{
-		#ifdef RUNNING_ON_BATTERY
+		if(m_runningOnBattery)
+		{
 			// Using WAKE_RF_DISABLED
 			//
 			// https://www.bakke.online/index.php/2017/05/21/reducing-wifi-power-consumption-on-esp8266-part-2/
@@ -563,13 +587,15 @@ namespace st
 			// the ESP now wakes up with the radio disabled, it stays disabled until after the sensors
 			// have been read and we can collect another 0.006 mAh reduction for a total of 0.024 mAh.
 			WiFi.disconnect(true);
-			delay(1);
+			yield();
+			
+			if (_isDebugEnabled) Serial.println("------------ WAKE_RF_DISABLED");
 
 			// WAKE_RF_DISABLED to keep the WiFi radio disabled when we wake up
 			ESP.deepSleep(time, WAKE_RF_DISABLED);
-		#else
+		} else {
 			ESP.deepSleep(time);
-		#endif
+		}
 	}
 	
 	//*******************************************************************************

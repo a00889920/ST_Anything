@@ -25,7 +25,8 @@
 //    2017-04-26  Dan Ogorchock  Allow each communication method to specify unique ST transmission throttling delay
 //    2019-02-09  Dan Ogorchock  Add update() call to Executors in support of devices like EX_Servo that need a non-blocking mechanism
 //    2019-02-24  Dan Ogorchock  Added new special callOnMsgRcvd2 callback capability. Allows recvd string to be manipulated in the sketch before being processed by Everything.
-//
+//    2020-08-22  a00889920      Added deepSleep() function
+//    
 //******************************************************************************************
 
 //#include <Arduino.h>
@@ -126,20 +127,6 @@ namespace st
 	}
 	
 //public
-	void Everything::preInit()
-	{
-		if(debug)
-		{
-			Serial.println(F("Everything: preInit started"));
-			Serial.print(F("Everything: Free RAM = "));
-			Serial.println(freeRam());
-		}
-		
-		#ifndef DISABLE_SMARTTHINGS
-			SmartThing->preInit();
-		#endif
-	}
-
 	void Everything::init()
 	{
 		Serial.begin(Constants::SERIAL_BAUDRATE);

@@ -10,6 +10,7 @@
 //  2019-05-01  Dan Ogorchock  Changed max transmit rate from every 100ms to every 
 //                             500ms to prevent duplicate child devices
 //  2020-04-18  Dan Ogorchock  Unified Arduino Ethernet Shield Class for 5100, 5200, 5500
+//  2020-08-22  a00889920      Added deepSleep() function
 //*******************************************************************************
 
 #ifndef __SMARTTHINGSETHERNETW5x00_H__ 
@@ -68,11 +69,6 @@ namespace st
 		/// Destructor 
 		//*******************************************************************************
 		~SmartThingsEthernetW5x00();
-
-		//*******************************************************************************
-		/// Initialize SmartThingsEthernet Library 
-		//*******************************************************************************
-		virtual void preInit(void) = 0;
 
 		//*******************************************************************************
 		/// Initialize SmartThingsEthernet Library 
