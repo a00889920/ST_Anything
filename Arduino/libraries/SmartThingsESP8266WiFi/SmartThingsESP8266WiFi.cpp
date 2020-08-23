@@ -60,10 +60,10 @@ namespace st
 
 	}
 
+ 	//*******************************************************************************
+	/// Pre-Initialize SmartThingsESP8266WiFI Library
 	//*******************************************************************************
-	/// Initialize SmartThingsESP8266WiFI Library
-	//*******************************************************************************
-	void SmartThingsESP8266WiFI::preInit(void)
+	void SmartThingsESP8266WiFi::preInit(void)
 	{
 		#ifdef RUNNING_ON_BATTERY
 			// Disabling WiFi when waking up
@@ -84,7 +84,7 @@ namespace st
 		#endif
 	}
 
-
+ 
 	//*******************************************************************************
 	/// Initialize SmartThingsESP8266WiFI Library
 	//*******************************************************************************
@@ -539,11 +539,11 @@ namespace st
 		delay(1);
 		st_client.stop();
 	}
-
+	
 	//*******************************************************************************
 	/// Puts device into Deepsleep 
 	//*******************************************************************************
-	void SmartThingsESP8266WiFI::deepSleep(uint64_t time)
+	void SmartThingsESP8266WiFi::deepSleep(uint64_t time)
 	{
 		#ifdef RUNNING_ON_BATTERY
 			// Using WAKE_RF_DISABLED
@@ -571,11 +571,12 @@ namespace st
 			ESP.deepSleep(time);
 		#endif
 	}
-
+	
 	//*******************************************************************************
 	/// Calculate CRC32
 	//*******************************************************************************
-	uint32_t SmartThingsESP8266WiFI::calculateCRC32(const uint8_t *data, size_t length) {
+	uint32_t SmartThingsESP8266WiFi::calculateCRC32(const uint8_t *data, size_t length)
+	{
 		uint32_t crc = 0xffffffff;
 		while(length--) {
 			uint8_t c = *data++;
@@ -594,5 +595,4 @@ namespace st
 
 		return crc;
 	}
-
 }
