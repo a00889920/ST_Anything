@@ -11,6 +11,7 @@
 //  2018-12-10  Dan Ogorchock  Add user selectable host name (repurposing the old shieldType variable)
 //  2019-05-01  Dan Ogorchock  Changed max transmit rate from every 100ms to every 
 //                             500ms to prevent duplicate child devices
+//  2020-08-22  a00889920      Reducing consumed power when using battery and deepSleep
 //*******************************************************************************
 
 #ifndef __SMARTTHINGSESP8266WIFI_H__

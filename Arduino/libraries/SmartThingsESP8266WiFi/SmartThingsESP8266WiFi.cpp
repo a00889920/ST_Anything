@@ -13,6 +13,7 @@
 //  2018-12-10  Dan Ogorchock  Add user selectable host name (repurposing the old shieldType variable)
 //  2019-06-03  Dan Ogorchock  Changed to wait on st_client.available() instead of st_client.connected()
 //  2019-06-25  Dan Ogorchock  Fix default hostname to not use underscore character
+//  2020-08-22  a00889920      Reducing consumed power when using battery and deepSleep
 //*******************************************************************************
 
 #include "SmartThingsESP8266WiFi.h"
