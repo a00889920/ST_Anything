@@ -6,6 +6,7 @@
 //
 //	History
 //	2017-02-04  Dan Ogorchock  Created
+//  2020-08-22  a00889920      Added deepSleep() function
 //*******************************************************************************
 #ifndef __SMARTTHINGS_H__ 
 #define __SMARTTHINGS_H__
@@ -40,11 +41,6 @@ namespace st
 		// SmartThings Destructor 
 		//*******************************************************************************
 		virtual ~SmartThings();
-
-		//*******************************************************************************
-		/// Initialize SmartThings Library 
-		//*******************************************************************************
-		virtual void preInit(void) = 0; //all derived classes must implement this pure virtual function
 
 		//*******************************************************************************
 		/// Initialize SmartThings Library 

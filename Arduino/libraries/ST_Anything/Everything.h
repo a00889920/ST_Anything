@@ -25,6 +25,7 @@
 //    2017-02-07  Dan Ogorchock  Added support for new SmartThings v2.0 library (ThingShield, W5100, ESP8266)
 //    2019-02-09  Dan Ogorchock  Add update() call to Executors in support of devices like EX_Servo that need a non-blocking mechanism
 //    2019-02-24  Dan Ogorchock  Added new special callOnMsgRcvd2 callback capability. Allows recvd string to be manipulated in the sketch before being processed by Everything.
+//    2020-08-22  a00889920      Added deepSleep() function
 //
 //******************************************************************************************
 
@@ -72,7 +73,6 @@ namespace st
 			static String Return_String;		//static buffer for string data queued for transfer to SmartThings Shield - prevents dynamic memory allocation heap fragmentation
 		
 		public:
-			static void preInit();				//st::Everything initialization routine called at the top of your sketch setup() routine 
 			static void init();					//st::Everything initialization routine called in your sketch setup() routine 
 			static void initDevices();			//calls the init() routine of every object added to st::Everything in your sketch setup() routine 
 			static void run();					//st::Everything initialization routine called in your sketch loop() routine 

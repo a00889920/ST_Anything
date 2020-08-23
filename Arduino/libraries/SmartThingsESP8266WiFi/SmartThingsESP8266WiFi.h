@@ -11,7 +11,7 @@
 //  2018-12-10  Dan Ogorchock  Add user selectable host name (repurposing the old shieldType variable)
 //  2019-05-01  Dan Ogorchock  Changed max transmit rate from every 100ms to every 
 //                             500ms to prevent duplicate child devices
-//  2020-08-22  a00889920      Reducing consumed power when using battery and deepSleep
+//  2020-08-22  a00889920	   Added power savings tricks when running on battery for ESP8266
 //*******************************************************************************
 
 #ifndef __SMARTTHINGSESP8266WIFI_H__
@@ -39,14 +39,15 @@ namespace st
 		long previousMillis;
 		long RSSIsendInterval;
 		char st_devicename[50];
+		boolean m_runningOnBattery = false;
 
 		// The ESP8266 RTC memory is arranged into blocks of 4 bytes. The access methods read and write 4 bytes at a time,
 		// so the RTC data structure should be padded to a 4-byte multiple.
 		struct {
-			uint32_t crc32;   // 4 bytes
-			uint8_t channel;  // 1 byte,   5 in total
-			uint8_t bssid[6]; // 6 bytes, 11 in total
-			uint8_t padding;  // 1 byte,  12 in total
+			uint32_t crc32;   	// 4 bytes
+			uint8_t channel;  	// 1 byte,   5 in total
+			uint8_t bssid[6]; 	// 6 bytes, 11 in total
+			uint8_t padding;  	// 1 byte,  12 in total
 		} rtcData;
 
 		//*******************************************************************************
@@ -70,8 +71,10 @@ namespace st
 		///   @param[in] callout - Set the Callout Function that is called on Msg Reception
 		///   @param[in] shieldType (optional) - Set the Reported SheildType to the Server
 		///   @param[in] enableDebug (optional) - Enable internal Library debug
+		///   @param[in] transmitInterval (optional) - Interval for transmiting
+		///   @param[in] runningOnBattery (optional) - Enable battery power saving tricks
 		//*******************************************************************************
-		SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType = "ESP8266Wifi", bool enableDebug = false, int transmitInterval = 500);
+		SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType = "ESP8266Wifi", bool enableDebug = false, int transmitInterval = 500, bool runningOnBattery = false);
 
 		//*******************************************************************************
 		/// @brief  SmartThings ESP8266 WiFi Constructor - DHCP
@@ -101,11 +104,6 @@ namespace st
 		/// Destructor
 		//*******************************************************************************
 		~SmartThingsESP8266WiFi();
-
-		//*******************************************************************************
-		/// Initialize SmartThingsESP8266WiFI Library
-		//*******************************************************************************
-		virtual void preInit(void);
 
 		//*******************************************************************************
 		/// Initialize SmartThingsESP8266WiFI Library

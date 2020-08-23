@@ -65,21 +65,11 @@
 #define PIN_TEMPERATUREHUMIDITY_1         D7  //SmartThings Capabilities "Temperature Measurement" and "Relative Humidity Measurement"
 
 //******************************************************************************************
-//Smarthings ESP8266 will perform extra steps to reduce the power consumed as much as possible:
-// Disabling WiFi when waking up
-// Disabling network persistence
-// Avoiding network scan
-// Using WAKE_RF_DISABLED
-//******************************************************************************************
-#define RUNNING_ON_BATTERY 
-
-//******************************************************************************************
 //Define some sleep settings.  
 //******************************************************************************************
 #define uS_TO_S_FACTOR 1000000    // Conversion factor for micro seconds to seconds
 #define TIME_TO_SLEEP  3600       // Time ESP32 will go to sleep (in seconds).  3600 = 1 hour.  Set higher for better 
                                   // battery life, lower for more frequent updates.
-RTC_DATA_ATTR int bootCount = 0;  // Save the boot count to RC memory which will survive sleep.
 
 //******************************************************************************************
 //ESP8266 WiFi Information
@@ -135,8 +125,15 @@ void callback(const String &msg)
 //******************************************************************************************
 void setup()
 {
-  st::Everything::preInit();  // This should be the first thing called in setup
-  Serial.println("I'm awake.");
+  //*****************************************************************************
+  //Initialize the "ESP8266WiFi" Class
+  //*****************************************************************************
+  //Create the SmartThings ESP8266WiFi Communications Object
+    //STATIC IP Assignment - Recommended
+    st::Everything::SmartThing = new st::SmartThingsESP8266WiFi(str_ssid, str_password, ip, gateway, subnet, dnsserver, serverPort, hubIp, hubPort, st::receiveSmartString, "ESP8266Wifi", true /*enableDebug*/, 500 /*transmitInterval*/, true /*runningOnBattery*/);
+    
+    //DHCP IP Assigment - Must set your router's DHCP server to provice a static IP address for this device's MAC address
+    //st::Everything::SmartThing = new st::SmartThingsESP8266WiFi(str_ssid, str_password, serverPort, hubIp, hubPort, st::receiveSmartString);
 
   //******************************************************************************************
   //Declare each Device that is attached to the Arduino
@@ -182,13 +179,6 @@ void setup()
   //Initialize the optional local callback routine (safe to comment out if not desired)
   st::Everything::callOnMsgSend = callback;
   
-  //Create the SmartThings ESP8266WiFi Communications Object
-    //STATIC IP Assignment - Recommended
-    st::Everything::SmartThing = new st::SmartThingsESP8266WiFi(str_ssid, str_password, ip, gateway, subnet, dnsserver, serverPort, hubIp, hubPort, st::receiveSmartString);
- 
-    //DHCP IP Assigment - Must set your router's DHCP server to provice a static IP address for this device's MAC address
-    //st::Everything::SmartThing = new st::SmartThingsESP8266WiFi(str_ssid, str_password, serverPort, hubIp, hubPort, st::receiveSmartString);
-
   //Run the Everything class' init() routine which establishes WiFi communications with SmartThings Hub
   st::Everything::init();
   
@@ -202,16 +192,6 @@ void setup()
   //*****************************************************************************
 
   //*****************************************************************************
-  //Increment our boot count, find out why we booted up, then setup sleep
-  //*****************************************************************************
-  ++bootCount;
-  delay(500);
-  Serial.println("**************************************");
-  Serial.println("Boot number: " + String(bootCount));
-  Serial.println("Setup ESP8266 to sleep every " + String(TIME_TO_SLEEP) + " Seconds");
-  Serial.println("**************************************");
-  
-  //*****************************************************************************
   //Initialize each of the devices which were added to the Everything Class
   //*****************************************************************************
   st::Everything::initDevices();
@@ -219,9 +199,12 @@ void setup()
   //*****************************************************************************
   //Go to sleep
   //*****************************************************************************
-  Serial.println("Going to sleep now");
-  delay(1000);
+  Serial.println("**************************************");
+  Serial.println("Going into deep sleep for " + String(TIME_TO_SLEEP) + " seconds");
+  Serial.println("**************************************");
   Serial.flush(); 
+  delay(1000);
+  
   st::Everything::deepSleep(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 }
 

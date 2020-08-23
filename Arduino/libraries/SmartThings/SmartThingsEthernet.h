@@ -9,6 +9,7 @@
 //  2017-05-02  Dan Ogorchock  Add support for W5500 Ethernet2 Shield
 //  2018-01-06  Dan Ogorchock  Added RSSI Interval as user-definable interval
 //  2020-07-26  Dan Ogorchock  Changed the final RSSI interval from 60 seconds to 900 seconds
+//  2020-08-22  a00889920      Added deepSleep() function
 //*******************************************************************************
 
 #ifndef __SMARTTHINGSETHERNET_H__ 
@@ -84,11 +85,6 @@ namespace st
 		/// Destructor 
 		//*******************************************************************************
 		~SmartThingsEthernet();
-
-		//*******************************************************************************
-		/// Initialize SmartThings Library 
-		//*******************************************************************************
-		virtual void preInit(void) = 0; //all derived classes must implement this pure virtual function
 
 		//*******************************************************************************
 		/// Initialize SmartThings Library 

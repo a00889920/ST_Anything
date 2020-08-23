@@ -9,6 +9,7 @@
 //  2018-01-06  Dan Ogorchock  Added WiFi.RSSI() data collection
 //  2019-05-01  Dan Ogorchock  Changed max transmit rate from every 100ms to every 
 //                             500ms to prevent duplicate child devices
+//  2020-08-22  a00889920      Added deepSleep() function
 //*******************************************************************************
 
 #ifndef __SMARTTHINGSWIFIESP_H__ 
@@ -72,11 +73,6 @@ namespace st
 		/// Destructor 
 		//*******************************************************************************
 		~SmartThingsWiFiEsp();
-
-		//*******************************************************************************
-		/// Initialize SmartThingsWiFiEsp Library 
-		//*******************************************************************************
-		virtual void preInit(void) = 0;
 
 		//*******************************************************************************
 		/// Initialize SmartThingsWiFiEsp Library 

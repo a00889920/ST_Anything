@@ -12,6 +12,7 @@
 //  2019-05-01  Dan Ogorchock  Changed max transmit rate from every 100ms to every 
 //                             500ms to prevent duplicate child devices
 //  2020-06-20  Dan Ogorchock  Add user selectable host name (repurposing the old shieldType variable)
+//  2020-08-22  a00889920      Added deepSleep() function
 //
 //*******************************************************************************
 
@@ -92,11 +93,6 @@ namespace st
 		/// Destructor
 		//*******************************************************************************
 		~SmartThingsESP32WiFi();
-
-		//*******************************************************************************
-		/// Initialize SmartThingsESP32WiFI Library
-		//*******************************************************************************
-		virtual void preInit(void) = 0;
 
 		//*******************************************************************************
 		/// Initialize SmartThingsESP32WiFI Library
