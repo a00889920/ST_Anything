@@ -21,41 +21,25 @@
  *    2018-06-02  Dan Ogorchock  Revised/Simplified for Hubitat Composite Driver Model
  *    2018-09-22  Dan Ogorchock  Added preference for debug logging
  *    2019-07-01  Dan Ogorchock  Added importUrl
+ *    2020-01-25  Dan Ogorchock  Remove custom lastUpdated attribute & general code cleanup
+ *    2020-05-16  Dan Ogrochock  Improved Capabilities/Attributes to work with other Apps
  *   
  *
  * 
  */
 metadata {
 	definition (name: "Child Ultrasonic Sensor", namespace: "ogiewon", author: "Daniel Ogorchock", importUrl: "https://raw.githubusercontent.com/DanielOgorchock/ST_Anything/master/HubDuino/Drivers/child-ultrasonic-sensor.groovy") {
-		capability "Sensor"
+        capability "Sensor"
+        capability "Voltage Measurement"
         
-		attribute "lastUpdated", "String"
         attribute "ultrasonic", "Number"
+	attribute "liters", "Number"
     }
 
     preferences {
         input name: "height", type: "number", title: "Height", description: "Enter height of tank in cm", required: true
         input name: "diameter", type: "number", title: "Diameter", description: "Enter diameter of tank", required: true
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
-    }
-
-    tiles(scale: 2) {
-		multiAttributeTile(name: "ultrasonic", type: "generic", width: 6, height: 4, canChangeIcon: true) {
-			tileAttribute("device.ultrasonic", key: "PRIMARY_CONTROL") {
-				attributeState("ultrasonic", label: '${currentValue}%', unit:"%", defaultState: true, 
-						backgroundColors: [
-							[value: 80, color: "#767676"],
-							[value: 50, color: "#ffa81e"],
-							[value: 20, color: "#d04e00"]
-						])
-			}
-            tileAttribute ("device.liters", key: "SECONDARY_CONTROL") {
-        		attributeState "power", label:'Water capacity: ${currentValue} liters', icon: "http://cdn.device-icons.smartthings.com/Bath/bath6-icn@2x.png"
-            }    
-        }
- 		valueTile("lastUpdated", "device.lastUpdated", inactiveLabel: false, decoration: "flat", width: 6, height: 2) {
-    			state "default", label:'Last Updated ${currentValue}', backgroundColor:"#ffffff"
-		}
     }
 }
 
@@ -70,6 +54,7 @@ def parse(String description) {
     def name  = parts.length>0?parts[0].trim():null
     def value = parts.length>1?parts[1].trim():null
     if (name && value) {
+        sendEvent(name: "voltage", value: value)
         double sensorValue = value as float
         def volume = 3.14159 * (diameter/2) * (diameter/2) * height
         double capacityLiters = volume / 1000 * 2
@@ -81,10 +66,6 @@ def parse(String description) {
             capacityValue = capacityValue.round(2)
             sendEvent(name: name, value: capacityValue)
         }
-        // Update lastUpdated date and time
-        def nowDay = new Date().format("MMM dd", location.timeZone)
-        def nowTime = new Date().format("h:mm a", location.timeZone)
-        sendEvent(name: "lastUpdated", value: nowDay + " at " + nowTime, displayed: false)
     }
     else {
     	log.error "Missing either name or value.  Cannot parse!"

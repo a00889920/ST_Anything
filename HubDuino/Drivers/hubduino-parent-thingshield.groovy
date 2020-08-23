@@ -58,9 +58,6 @@ metadata {
 		fingerprint profileId: "0104", deviceId: "0138", inClusters: "0000"
 	}
 
-    simulator {
-    }
-
     // Preferences
 	preferences {
         input "timeOut", "number", title: "Timeout in Seconds", description: "Max time w/o HubDuino update before setting device to 'not present'", defaultValue: "900", required: true, displayDuringSetup:true
@@ -260,11 +257,11 @@ def updated() {
     }
     
     //Schedule inactivity timeout
-    log.info "Device inactivity timer started for ${timeOutHubDuino} seconds"
+    log.info "Device inactivity timer started for ${timeOut} seconds"
     runIn(timeOut, timeOutHubDuino)
     
     //Have the Arduino send an updated value for every device attached.  This will auto-created child devices!
-    log.info "Sending REFRESH command to Arduino, which wilol create any missing child devices."
+    log.info "Sending REFRESH command to Arduino, which will create any missing child devices."
     refresh()
 }
 

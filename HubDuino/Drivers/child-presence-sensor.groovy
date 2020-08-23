@@ -22,6 +22,9 @@
  *    2018-06-02  Dan Ogorchock  Revised/Simplified for Hubitat Composite Driver Model
  *    2018-09-22  Dan Ogorchock  Added preference for debug logging
  *    2019-07-01  Dan Ogorchock  Added importUrl
+ *    2019-12-17  Dan Ogorchock  Suppress debug logging based on user setting
+ *    2020-01-25  Dan Ogorchock  Remove custom lastUpdated attribute & general code cleanup
+ *    2020-03-01  Dan Ogorchock  Incorporated optional feature from @ritchierich to prevent presence value 'flapping'
  * 
  */
 metadata {
@@ -29,35 +32,14 @@ metadata {
 		capability "Sensor"
 		capability "Presence Sensor"
 
-		attribute "lastUpdated", "String"
         attribute "level", "Number"
 	}
-
-	simulator {
-
-	}
-    
+   
 	preferences {
-		section("Prefs") {
-			input "presenceTriggerValue", "number", title: "(Optional) Presence Trigger Value\nAt what value is presence triggered?", required: false, displayDuringSetup: false
-            input "invertTriggerLogic", "bool", title: "(Optional) Invert Logic", description: "False = Present > Trigger Value\nTrue = Present < Trigger Value", default: false, required: false, displayDuringSetup: false
-            input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
-		}
-	}
-
-	tiles(scale: 2) {
-		multiAttributeTile(name: "presence", type: "generic", width: 2, height: 2, canChangeBackground: true) {
-			tileAttribute ("device.presence", key: "PRIMARY_CONTROL") {
-            	attributeState "present", label: 'Present', icon:"st.tesla.tesla-car", backgroundColor:"#00A0DC"
-				attributeState "not present", label: 'Away', icon:"st.doors.garage.garage-open", backgroundColor:"#ffffff"
-            }
- 			tileAttribute("device.level", key: "SECONDARY_CONTROL") {
-    				attributeState("default", label:'    Level ${currentValue}')
-            }
-		}
-        valueTile("lastUpdated", "device.lastUpdated", inactiveLabel: false, decoration: "flat", width: 6, height: 2) {
-    			state "default", label:'Last Updated ${currentValue}', backgroundColor:"#ffffff"
-		}
+        input "waitSeconds", "number", title: "Number of seconds to wait to verify presence", required: false
+        input "presenceTriggerValue", "number", title: "(Optional) Presence Trigger Value\nAt what value is presence triggered?", required: false, displayDuringSetup: false
+        input "invertTriggerLogic", "bool", title: "(Optional) Invert Logic", description: "False = Present > Trigger Value\nTrue = Present < Trigger Value", default: false, required: false, displayDuringSetup: false
+        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
 	}
 }
 
@@ -75,7 +57,7 @@ def parse(String description) {
         if (value.isNumber()) {
             sendEvent(name: "level", value: value)
             if (presenceTriggerValue) {
-                log.debug "Presence received a numeric value. Perform comparison of value: ${Float.valueOf(value.trim())} versus presenceTriggerValue: ${presenceTriggerValue}"
+                if (logEnable) log.debug "Presence received a numeric value. Perform comparison of value: ${Float.valueOf(value.trim())} versus presenceTriggerValue: ${presenceTriggerValue}"
                 if (Float.valueOf(value.trim()) >= presenceTriggerValue) {
                     value = invertTriggerLogic?"not present":"present"
                 } 
@@ -88,15 +70,24 @@ def parse(String description) {
             }
         }
         else {
-            log.debug "Presence received a string.  value = ${value}"
+            if (logEnable) log.debug "Presence received a string.  value = ${value}"
             if (value != "present") { value = "not present" }
         }
         // Update device
-        sendEvent(name: name, value: value)
-        // Update lastUpdated date and time
-        def nowDay = new Date().format("MMM dd", location.timeZone)
-        def nowTime = new Date().format("h:mm a", location.timeZone)
-        sendEvent(name: "lastUpdated", value: nowDay + " at " + nowTime, displayed: false)    
+        if (waitSeconds) {
+            state.lastValue = value
+            if (device.currentValue("presence") != value && state.isScheduled == false) {
+                state.isScheduled = true
+                runIn(waitSeconds, "processDelay")
+                if (logEnable) log.debug "Scheduled delay.  state.lastValue = ${state.lastValue}, scheduled: ${state.isScheduled}"
+            } else if (state.isScheduled == true) {
+                unschedule("processDelay")
+                state.isScheduled = false
+                if (logEnable) log.debug "UnScheduled delay.  state.lastValue = ${state.lastValue}, scheduled: ${state.isScheduled}"
+            }
+        } else {
+            sendEvent(name: name, value: value)
+        }
     }
     else {
     	log.error "Missing either name or value.  Cannot parse!"
@@ -109,4 +100,17 @@ def installed() {
 
 def updated() {
     if (logEnable) runIn(1800,logsOff)
+    state.lastUpdated = ""
+    state.isScheduled = false
+    if (waitSeconds) {
+        state.lastValue = ""
+    }
+}
+
+private processDelay() {
+    if (logEnable) log.debug "processDelay currentValue = ${device.currentValue("presence")}, state.lastValue: ${state.lastValue}"
+    state.isScheduled = false
+    if (device.currentValue("presence") != state.lastValue) {
+        sendEvent(name: "presence", value: state.lastValue)
+    }
 }

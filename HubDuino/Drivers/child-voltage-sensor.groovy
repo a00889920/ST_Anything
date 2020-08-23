@@ -23,6 +23,8 @@
  *    2018-06-02  Dan Ogorchock  Revised/Simplified for Hubitat Composite Driver Model
  *    2018-09-22  Dan Ogorchock  Added preference for debug logging
  *    2019-07-01  Dan Ogorchock  Added importUrl
+ *    2020-01-25  Dan Ogorchock  Remove custom lastUpdated attribute & general code cleanup
+ *    2020-07-26  Dan Ogorchock  User can now select the number of decimal places stored.
  *
  * 
  */
@@ -30,24 +32,12 @@ metadata {
 	definition (name: "Child Voltage Sensor", namespace: "ogiewon", author: "Daniel Ogorchock", importUrl: "https://raw.githubusercontent.com/DanielOgorchock/ST_Anything/master/HubDuino/Drivers/child-voltage-sensor.groovy") {
 		capability "Voltage Measurement"
 		capability "Sensor"
-
-		attribute "lastUpdated", "String"
 	}
         
     preferences {
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
-	}
-
-	tiles(scale: 2) {
-		multiAttributeTile(name: "voltage", type: "generic", width: 6, height: 4, canChangeIcon: true) {
-			tileAttribute("device.voltage", key: "PRIMARY_CONTROL") {
-				attributeState("voltage", label: '${currentValue} ${unit}', unit: "mV", defaultState: true)
-			}
- 			tileAttribute("device.lastUpdated", key: "SECONDARY_CONTROL") {
-    				attributeState("default", label:'    Last updated ${currentValue}',icon: "st.Health & Wellness.health9")
-            }
-		}
-	}
+		input name: "numDecimalPlaces", type: "enum", title: "Number of decimal places", description: "", defaultValue: "1", required: true, multiple: false, options:[["0":"0"], ["1":"1"], ["2":"2"], ["3":"3"]], displayDuringSetup: false
+    }
 }
 
 def logsOff(){
@@ -61,12 +51,19 @@ def parse(String description) {
     def name  = parts.length>0?parts[0].trim():null
     def value = parts.length>1?parts[1].trim():null
     if (name && value) {
-        // Update device
-        sendEvent(name: name, value: value)
-        // Update lastUpdated date and time
-        def nowDay = new Date().format("MMM dd", location.timeZone)
-        def nowTime = new Date().format("h:mm a", location.timeZone)
-        sendEvent(name: "lastUpdated", value: nowDay + " at " + nowTime, displayed: false)
+        if (numDecimalPlaces == null) {
+            device.updateSetting("numDecimalPlaces", [value: "1", type: "enum"])
+        }
+        
+        if (numDecimalPlaces == "0") {
+            int tmpValue = Float.parseFloat(value)
+            sendEvent(name: name, value: tmpValue, unit: "V")
+        }
+        else {
+            float tmpValue = Float.parseFloat(value)
+            tmpValue = tmpValue.round(numDecimalPlaces.toInteger())
+            sendEvent(name: name, value: tmpValue, unit: "V")
+        }
     }
     else {
     	log.error "Missing either name or value.  Cannot parse!"

@@ -23,6 +23,9 @@
  *    2019-01-30  Jeff Albers	 Set upper level value as 100 instead of 99
  *    2019-02-09  Dan Ogorchock  Updated to support enhanced EX_Servo class - special thanks to Jeff Albers!
  *    2019-07-01  Dan Ogorchock  Added importUrl
+ *    2020-01-25  Dan Ogorchock  Ensure RATE from user preference section is always used in setLevel() command 
+ *    2020-01-25  Dan Ogorchock  Remove custom lastUpdated attribute & general code cleanup
+ *    2020-01-26  Dan Ogorchock  Add Reverse Direction and OVerride Rate user preferences - thanks @flotsam1! 
  * 
  */
 metadata {
@@ -32,42 +35,18 @@ metadata {
             capability "Actuator"
             capability "Sensor"
 
-            attribute "lastUpdated", "String"
             attribute "angle", "number"
             attribute "rate", "number"
 	}
 
-	simulator {
-
-	}
-
    	preferences {
-            input ("onvalue", "number", title: "On Percentage", required: false, defaultValue: 100, description: "Percentage that should be used for On command.")
-            input ("offvalue", "number", title: "Off Percentage", required: false, defaultValue: 0, description: "Percentage that should be used for Off command.")
-            input ("rateValue", "number", title: "Default Rate (Duration)", required: false, defaultValue: 1000, description: "Time in milliseconds to transition from 0 to 180 degrees (0 = full speed)")
+            input ("onvalue", "number", title: "On Percentage", required: true, defaultValue: 100, description: "Percentage that should be used for On command.")
+            input ("offvalue", "number", title: "Off Percentage", required: true, defaultValue: 0, description: "Percentage that should be used for Off command.")
+            input ("rateValue", "number", title: "Default Rate (Duration)", required: true, defaultValue: 1000, description: "Time in milliseconds to transition from 0 to 180 degrees (0 = full speed)")
+            input ("reverseDirection", "bool", title: "Reverse Servo Direction?", required: true, defaultValue: false, description: "Can be useful for backwards blinds")
+            input ("overrideRate", "bool", title: "Override Rate?", required: true, defaultValue: false, description: "On = always use 'Default Rate'")
             input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
         }
-
-	tiles(scale: 2) {
-		controlTile("levelSliderControl", "device.level", "slider", height: 2, width: 2, inactiveLabel: false) {
-			state "level", action:"switch level.setLevel"
-		}
- 		valueTile("level", "device.level", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-			state "level", label:'${currentValue}%', unit:"%", backgroundColor:"#ffffff"
-		}
- 		valueTile("angle", "device.angle", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-			state "angle", label:'${currentValue}°', unit:"degrees", backgroundColor:"#ffffff"
-		}
-		valueTile("rate", "device.rate", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-			state "rate", label:'${currentValue}', unit:"ms", backgroundColor:"#ffffff"
-		}
- 		valueTile("lastUpdated", "device.lastUpdated", inactiveLabel: false, decoration: "flat", width: 6, height: 2) {
-    		state "default", label:'Last Updated ${currentValue}', backgroundColor:"#ffffff"
-        }
-       
-		main(["angle"])
-		details(["levelSliderControl", "level", "angle", "rate", "lastUpdated"])       
-	}
 }
 
 def on() {
@@ -84,9 +63,12 @@ def logsOff(){
 }
 
 def setLevel(level, rate = null) {
+    if (overrideRate == true) rate = rateValue.toInteger()    
     if (rate == null) rate = rateValue.toInteger()
+
+    if (reverseDirection == true) level = 100 - level
     
-    if (logEnable) log.debug "setLevel >> level: ${level}, rate: ${rate}"
+	if (logEnable) log.debug "setLevel >> level: ${level}, rate: ${rate}"
     
     level = Math.max(Math.min(level.toInteger(), 100), 0)
     rate = Math.max(Math.min(rate.toInteger(), 30000), 0)
@@ -107,6 +89,10 @@ def parse(String description) {
     if (name && value) {   
         // Update device
         def myValues = value.split(':')
+        if (reverseDirection == true) {
+            myValues[0] = 100 - myValues[0].toInteger()
+            myValues[1] = 180 - myValues[1].toInteger()
+        }
         sendEvent(name: "level",value: myValues[0].toInteger())
         sendEvent(name: "angle", value: myValues[1].toInteger())
         sendEvent(name: "rate", value: myValues[2].toInteger())
@@ -116,10 +102,6 @@ def parse(String description) {
         else {
             sendEvent(name: "switch", value: "on")
         }
-      	// Update lastUpdated date and time
-        def nowDay = new Date().format("MMM dd", location.timeZone)
-        def nowTime = new Date().format("h:mm a", location.timeZone)
-        sendEvent(name: "lastUpdated", value: nowDay + " at " + nowTime, displayed: false)
     }
     else {
     	log.error "Missing either name or value.  Cannot parse!"
