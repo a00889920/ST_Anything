@@ -1,0 +1,19 @@
+1.- Modify sketch
+2.- Add Device IP address to sketch (needs to be static) (example:192.168.254.200)
+3.- Go to router config page 192.168.254.254
+4.- In Frontier router go to Advanced -> DHCP Reservation
+5.- Locate MAC Address from Arduino log - BCDDC2B5A7D8
+6.- Format it with collons - BC:DD:C2:B5:A7:D8
+7.- Enter the MAC Address and reserved IP address (192.168.254.200) and click Add DHCP Reservation
+8.- Reservation should show up in the list
+
+9.- Go to Smart Things web dashboard and sign in
+10.- Go to My Devices and click New Device
+11.- Add a Name, Label,Device Netword Id (this MUST Be the MAC Address without collons), type: Parent_ST_Anything_Ethernet, Version: Published, select a location and hub.
+12.- Click Create button
+13.- Reset NodeMCU to register new children, they should show up in the devices dashboard and the app
+
+14.- Go to Smart Things app or web page
+15.- Click on the new devices
+16.- Click Configure and add ip address, mac address, arduino port 8090 and other information
+17.- Optionally this could be done thru the web page too

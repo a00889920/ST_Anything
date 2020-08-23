@@ -41,8 +41,19 @@ metadata {
 				attributeState("wet", label: "Wet", icon:"st.alarm.water.wet", backgroundColor:"#00a0dc")
 			}
  			tileAttribute("device.lastUpdated", key: "SECONDARY_CONTROL") {
-    				attributeState("default", label:'    Last updated ${currentValue}',icon: "st.Health & Wellness.health9")
+    			attributeState("default", label:'    Last updated ${currentValue}',icon: "st.Health & Wellness.health9")
             }
+		}
+        multiAttributeTile(name:"water_raw", type: "generic", width: 6, height: 4){
+			tileAttribute ("device.water_raw", key: "PRIMARY_CONTROL") {
+				attributeState("raw value", label:'    Raw value ${currentValue}',icon: "st.Health & Wellness.health9")
+			}
+ 			tileAttribute("device.lastUpdated_raw", key: "SECONDARY_CONTROL") {
+    			attributeState("default", label:'    Last updated ${currentValue}',icon: "st.Health & Wellness.health9")
+            }
+		}
+        valueTile("rawValueTile", "device.rawValueTile", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
+			state "rawValueTile", label:'${currentValue}', unit:"units", backgroundColor:"#ffffff"
 		}
 	}
 }
@@ -53,12 +64,24 @@ def parse(String description) {
     def name  = parts.length>0?parts[0].trim():null
     def value = parts.length>1?parts[1].trim():null
 	if (name && value) {
-        // Update device
-        sendEvent(name: name, value: value)
         // Update lastUpdated date and time
         def nowDay = new Date().format("MMM dd", location.timeZone)
         def nowTime = new Date().format("h:mm a", location.timeZone)
-        sendEvent(name: "lastUpdated", value: nowDay + " at " + nowTime, displayed: false)
+        
+        // Update device
+        if ((value == "wet") || (value == "dry"))
+        {
+            sendEvent(name: name, value: value)
+            log.debug "value set (${value}) child water sensor"
+            sendEvent(name: "lastUpdated", value: nowDay + " at " + nowTime, displayed: false)
+        }
+        else
+        {
+            sendEvent(name: name + "_raw", value: value)
+            sendEvent(name: "rawValueTile", value: value)
+            log.debug "value set (${value}) child water sensor"
+            sendEvent(name: "lastUpdated_raw", value: nowDay + " at " + nowTime, displayed: false)
+        }
     }
     else {
     	log.debug "Missing either name or value.  Cannot parse!"

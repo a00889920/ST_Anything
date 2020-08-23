@@ -392,4 +392,3 @@ def initialize() {
 	sendEvent(name: "DeviceWatch-Enroll", value: JsonOutput.toJson([protocol: "cloud", scheme:"untracked"]), displayed: false)
 	updateDataValue("EnrolledUTDH", "true")
 }
-
