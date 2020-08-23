@@ -88,6 +88,11 @@ namespace st
 		//*******************************************************************************
 		/// Initialize SmartThings Library 
 		//*******************************************************************************
+		virtual void preInit(void) = 0; //all derived classes must implement this pure virtual function
+
+		//*******************************************************************************
+		/// Initialize SmartThings Library 
+		//*******************************************************************************
 		virtual void init(void) = 0; //all derived classes must implement this pure virtual function
 
 		//*******************************************************************************
@@ -100,6 +105,10 @@ namespace st
 		//*******************************************************************************
 		virtual void send(String message) = 0; //all derived classes must implement this pure virtual function
 
+		//*******************************************************************************
+		/// Puts device into Deepsleep 
+		//*******************************************************************************
+		virtual void deepSleep(uint64_t time) = 0; //all derived classes must implement this pure virtual function
 
 	};
 }
