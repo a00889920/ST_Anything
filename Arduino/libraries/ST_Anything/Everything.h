@@ -72,9 +72,11 @@ namespace st
 			static String Return_String;		//static buffer for string data queued for transfer to SmartThings Shield - prevents dynamic memory allocation heap fragmentation
 		
 		public:
+			static void preInit();				//st::Everything initialization routine called at the top of your sketch setup() routine 
 			static void init();					//st::Everything initialization routine called in your sketch setup() routine 
 			static void initDevices();			//calls the init() routine of every object added to st::Everything in your sketch setup() routine 
 			static void run();					//st::Everything initialization routine called in your sketch loop() routine 
+			static void deepSleep(uint64_t time);	//Puts device into Deepsleep 
 			
 			static bool sendSmartString(String &str); //sendSmartString() may edit the string reference passed to it - queues messages - preferable
 			static bool sendSmartStringNow(String &str); //sendSmartStringNow() may edit the string reference passed to it - sends messages immediate - only for special circumstances

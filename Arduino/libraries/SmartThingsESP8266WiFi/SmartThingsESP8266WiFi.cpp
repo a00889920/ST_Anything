@@ -62,26 +62,184 @@ namespace st
 	//*******************************************************************************
 	/// Initialize SmartThingsESP8266WiFI Library
 	//*******************************************************************************
+	void SmartThingsESP8266WiFI::preInit(void)
+	{
+		#ifdef RUNNING_ON_BATTERY
+			// Disabling WiFi when waking up
+			//
+			// https://www.bakke.online/index.php/2017/05/21/reducing-wifi-power-consumption-on-esp8266-part-2/
+			//
+			// As the WiFi radio is on when the ESP wakes up, we wake up with 70 mA current even if we’re not using the WiFi yet.
+			// To try to reduce this, let’s switch off the WiFi radio at the beginning of the setup() function, keep it off while
+			// we’re reading the sensors, and switch it back on when we are ready to send the results to the server.
+			//
+			// From the experiments, it was found that both WiFi.mode() and WiFi.forceSleepBegin() were required in order to
+			// switch off the radio. The forceSleepBegin() call will set the flags and modes necessary, but the radio will not
+			// actually switch off until control returns to the ESP ROM. To do that we’re adding a delay( 1 ),
+			// but I suppose a yield() would work as well.
+			WiFi.mode(WIFI_OFF);
+  			WiFi.forceSleepBegin();
+  			delay(1);
+		#endif
+	}
+
+
+	//*******************************************************************************
+	/// Initialize SmartThingsESP8266WiFI Library
+	//*******************************************************************************
 	void SmartThingsESP8266WiFi::init(void)
 	{
 		if (!st_preExistingConnection) {
 			Serial.println(F(""));
 			Serial.println(F("Initializing ESP8266 WiFi network.  Please be patient..."));
 
+			#ifdef RUNNING_ON_BATTERY
+				// https://www.bakke.online/index.php/2017/05/21/reducing-wifi-power-consumption-on-esp8266-part-2/
+				// Just before the calls to establish the WiFi connection, we switch the radio back on:
+				// forceSleepWake() will set the correct flags and modes, but the change will not take effect 
+  				// until control returns to the ESP ROM, so we add a delay( 1 ) call here as well.				
+				WiFi.forceSleepWake();
+				delay(1);
+			#endif
+
 			if (st_DHCP == false)
 			{
+				#ifdef RUNNING_ON_BATTERY
+					// Disabling network persistence
+					//
+					// https://www.bakke.online/index.php/2017/05/22/reducing-wifi-power-consumption-on-esp8266-part-3/
+					//
+					// The ESP8266 will persist the network connection information to flash,
+					// and then read this back when it next starts the WiFi function. It does this every time, and 
+					// from experiments, it was found that this takes at least 1.2 seconds. There are cases where
+					// the WiFi function would crash the chip, and the WiFi would never connect.
+					//
+					// The chip also does this even when you pass connection information to WiFi.begin(), i.e. even in the case below:
+					// WiFi.begin( WLAN_SSID, WLAN_PASSWD );
+					// This will actually load the connection information from flash, promptly ignore it and use the 
+					// values you specify instead, connect to the WiFi and then finally write your values back to flash.
+					//
+					// This starts wearing out the flash memory after a while. Exactly how quickly or slowly will depend on
+					// the quality of the flash memory connected to your ESP8266 chip.
+					//
+					// The good news is that we can disable or enable this persistence by calling WiFi.persistent().
+					WiFi.persistent(false);
+				#endif
+
 				WiFi.config(st_localIP, st_localGateway, st_localSubnetMask, st_localDNSServer);
 			}
-			// attempt to connect to WiFi network
-			WiFi.begin(st_ssid, st_password);
+
+			#ifdef RUNNING_ON_BATTERY
+				// https://www.bakke.online/index.php/2017/06/24/esp8266-wifi-power-reduction-avoiding-network-scan/
+
+				// Introducing the RTC and its memory
+				// When the ESP8266 goes into deep sleep, a part of the chip called the RTC remains awake.  
+				// Its power consumption is extremely low, so the ESP8266 does not use much power when in deep sleep.
+				// This is the component responsible for generating the wakeup signal when our deep sleep times out.
+				// That’s not the only benefit of the RTC, though.  It also has its own memory, which we can actually
+				// read from and write to from the main ESP8266 processor.
+				//
+				// WiFi quick connect
+				// The WiFi.begin() method has an overload which accepts a WiFi channel number and a BSSID.  By passing
+				// these, the ESP8266 will attempt to connect to a specific WiFi access point on the channel given, 
+				// thereby eliminating the need to scan for an access point advertising the requested network.
+				//
+				// How much time this will save depends on your network infrastructure, how many WiFi networks are active,
+				// how busy the network is and the signal strength.  It WILL save time, though, time in which the WiFi radio
+				// is active and drawing power from the batteries.
+				//
+				// Only problem is: How is the ESP8266 going to know which channel and BSSID to use when it wakes up, without doing a scan?
+				//
+				// That’s where we can use the memory in the RTC.  As the RTC remains powered during deep sleep, anything we
+				// write into its memory will still be there when the ESP wakes up again.
+				//
+				// So, when the ESP8266 wakes up, we’ll read the RTC memory and check if we have a valid configuration to use.
+				// If we do, we’ll pass the additional parameters to WiFi.begin().  If we don’t, we’ll just connect as normal.
+				// As soon as the connection has been established, we can write the channel and BSSID into the RTC memory, ready for next time.
+				//
+				// Reading and writing this memory is explained in the RTCUserMemory example in the Arduino board support package,
+				// and the code below is based on that example
+
+				// Try to read WiFi settings from RTC memory
+				bool rtcValid = false;
+				if( ESP.rtcUserMemoryRead( 0, (uint32_t*)&rtcData, sizeof( rtcData ) ) ) {
+					// Calculate the CRC of what we just read from RTC memory, but skip the first 4 bytes as that's the checksum itself.
+					uint32_t crc = calculateCRC32( ((uint8_t*)&rtcData) + 4, sizeof( rtcData ) - 4 );
+					if( crc == rtcData.crc32 ) {
+						rtcValid = true;
+					}
+				}
+
+				if( rtcValid ) {
+					// The RTC data was good, make a quick connection
+					WiFi.begin( WLAN_SSID, WLAN_PASSWD, rtcData.channel, rtcData.ap_mac, true );
+				} else {
+					// The RTC data was not valid, so make a regular connection
+					WiFi.begin( WLAN_SSID, WLAN_PASSWD );
+				}
+			#else
+				// attempt to connect to WiFi network
+				WiFi.begin(st_ssid, st_password);
+			#endif
+
 			Serial.print(F("Attempting to connect to WPA SSID: "));
 			Serial.println(st_ssid);
 		}
 
-		while (WiFi.status() != WL_CONNECTED) {
-			Serial.print(F("."));
-			delay(500);	// wait for connection:
-		}
+		#ifdef RUNNING_ON_BATTERY
+			// The loop waiting for the WiFi connection to be established becomes a little more complicated
+			// as we’ll have to consider the possibility that the WiFi access point has changed channels,
+			// or that the access point itself has been changed.  So, if we haven’t established a connection
+			// after a certain number of loops, we’ll reset the WiFi and try again with a normal connection. 
+			// If, after 30 seconds, we still don’t have a connection we’ll go back to sleep and try again the
+			// next time we wake up.  After all, it could be that the WiFi network is temporarily unavailable
+			// and we don’t want to stay awake until it comes back. Better to go back to sleep and hope
+			// things are better in the morning…
+
+			int retries = 0;
+			int wifiStatus = WiFi.status();
+			while( wifiStatus != WL_CONNECTED ) {
+				retries++;
+
+				if( retries == 100 ) {
+					// Quick connect is not working, reset WiFi and try regular connection
+					WiFi.disconnect();
+					delay( 10 );
+					WiFi.forceSleepBegin();
+					delay( 10 );
+					WiFi.forceSleepWake();
+					delay( 10 );
+					WiFi.begin( WLAN_SSID, WLAN_PASSWD );
+				}
+
+				if( retries == 600 ) {
+					// Giving up after 30 seconds and going back to sleep
+					WiFi.disconnect( true );
+					delay( 1 );
+					WiFi.mode( WIFI_OFF );
+					ESP.deepSleep( SLEEPTIME, WAKE_RF_DISABLED );
+					return; // Not expecting this to be called, the previous call will never return.
+				}
+
+				delay( 50 );
+				wifiStatus = WiFi.status();
+			}
+
+			// Once the WiFi is connected, we can get the channel and BSSID and stuff it into the
+			// RTC memory, ready for the next time we wake up.
+
+			// Write current connection info back to RTC
+			rtcData.channel = WiFi.channel();
+			memcpy( rtcData.ap_mac, WiFi.BSSID(), 6 ); // Copy 6 bytes of BSSID (AP's MAC address)
+			rtcData.crc32 = calculateCRC32( ((uint8_t*)&rtcData) + 4, sizeof( rtcData ) - 4 );
+			ESP.rtcUserMemoryWrite( 0, (uint32_t*)&rtcData, sizeof( rtcData ) );
+
+		#else
+			while (WiFi.status() != WL_CONNECTED) {
+				Serial.print(F("."));
+				delay(500);	// wait for connection:
+			}
+		#endif
 
 		Serial.println();
 
@@ -379,6 +537,61 @@ namespace st
 
 		delay(1);
 		st_client.stop();
+	}
+
+	//*******************************************************************************
+	/// Puts device into Deepsleep 
+	//*******************************************************************************
+	void SmartThingsESP8266WiFI::deepSleep(uint64_t time)
+	{
+		#ifdef RUNNING_ON_BATTERY
+			// Using WAKE_RF_DISABLED
+			//
+			// https://www.bakke.online/index.php/2017/05/21/reducing-wifi-power-consumption-on-esp8266-part-2/
+			//
+			// There’s a sharp power peak as the ESP wakes up, and by the time the setup() is called,
+			// we will have used 0.008 mAh already.
+			// To avoid this we can go to sleep using the WAKE_RF_DISABLED flag. This configures the
+			// chip to keep the radio disabled until told to enable it.
+			//
+			// The calls to WiFi.disconnect() and delay() are needed in order to ensure the chip goes
+			// into proper deep sleep. Without them, the chip usually ends up consuming about 1.2 mA 
+			// of current while sleeping. This indicates that deep sleep was not achieved and that the
+			// chip is in Power Save DTIM3 mode.
+			//
+			// the ESP now wakes up with the radio disabled, it stays disabled until after the sensors
+			// have been read and we can collect another 0.006 mAh reduction for a total of 0.024 mAh.
+			WiFi.disconnect(true);
+			delay(1);
+
+			// WAKE_RF_DISABLED to keep the WiFi radio disabled when we wake up
+			ESP.deepSleep(time, WAKE_RF_DISABLED);
+		#else
+			ESP.deepSleep(time);
+		#endif
+	}
+
+	//*******************************************************************************
+	/// Calculate CRC32
+	//*******************************************************************************
+	uint32_t SmartThingsESP8266WiFI::calculateCRC32(const uint8_t *data, size_t length) {
+		uint32_t crc = 0xffffffff;
+		while(length--) {
+			uint8_t c = *data++;
+			for(uint32_t i = 0x80; i > 0; i >>= 1) {
+				bool bit = crc & 0x80000000;
+				if(c & i) {
+					bit = !bit;
+				}
+
+				crc <<= 1;
+				if(bit) {
+					crc ^= 0x04c11db7;
+				}
+			}
+		}
+
+		return crc;
 	}
 
 }

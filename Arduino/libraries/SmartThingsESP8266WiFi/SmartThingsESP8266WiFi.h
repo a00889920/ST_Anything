@@ -39,6 +39,20 @@ namespace st
 		long RSSIsendInterval;
 		char st_devicename[50];
 
+		// The ESP8266 RTC memory is arranged into blocks of 4 bytes. The access methods read and write 4 bytes at a time,
+		// so the RTC data structure should be padded to a 4-byte multiple.
+		struct {
+			uint32_t crc32;   // 4 bytes
+			uint8_t channel;  // 1 byte,   5 in total
+			uint8_t bssid[6]; // 6 bytes, 11 in total
+			uint8_t padding;  // 1 byte,  12 in total
+		} rtcData;
+
+		//*******************************************************************************
+		/// Calculate CRC32
+		//*******************************************************************************
+		uint32_t calculateCRC32(const uint8_t *data, size_t length);
+
 	public:
 
 		//*******************************************************************************
@@ -90,6 +104,11 @@ namespace st
 		//*******************************************************************************
 		/// Initialize SmartThingsESP8266WiFI Library
 		//*******************************************************************************
+		virtual void preInit(void);
+
+		//*******************************************************************************
+		/// Initialize SmartThingsESP8266WiFI Library
+		//*******************************************************************************
 		virtual void init(void);
 
 		//*******************************************************************************
@@ -101,6 +120,11 @@ namespace st
 		/// Send Message to the Hub
 		//*******************************************************************************
 		virtual void send(String message);
+
+		//*******************************************************************************
+		/// Puts device into Deepsleep 
+		//*******************************************************************************
+		virtual void deepSleep(uint64_t time);
 
 	};
 }

@@ -126,6 +126,20 @@ namespace st
 	}
 	
 //public
+	void Everything::preInit()
+	{
+		if(debug)
+		{
+			Serial.println(F("Everything: preInit started"));
+			Serial.print(F("Everything: Free RAM = "));
+			Serial.println(freeRam());
+		}
+		
+		#ifndef DISABLE_SMARTTHINGS
+			SmartThing->preInit();
+		#endif
+	}
+
 	void Everything::init()
 	{
 		Serial.begin(Constants::SERIAL_BAUDRATE);
@@ -150,6 +164,20 @@ namespace st
 			Serial.println(freeRam());
 		}
 	}
+
+	void Everything::deepSleep(uint64_t time)
+	{
+		if(debug)
+		{
+			Serial.println(F("Everything: deepSleep started"));
+			Serial.print(F("Everything: Free RAM = "));
+			Serial.println(freeRam());
+		}
+		
+		#ifndef DISABLE_SMARTTHINGS
+			SmartThing->deepSleep(time);
+		#endif
+	}
 	
 	void Everything::initDevices()
 	{
@@ -159,7 +187,7 @@ namespace st
 			Serial.print(F("Everything: Free RAM = "));
 			Serial.println(freeRam());
 		}
-		
+
 		for(unsigned int index=0; index<m_nSensorCount; ++index)
 		{
 			m_Sensors[index]->init();
