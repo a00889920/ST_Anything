@@ -12,6 +12,7 @@
 //  2019-05-01  Dan Ogorchock  Changed max transmit rate from every 100ms to every 
 //                             500ms to prevent duplicate child devices
 //  2020-08-22  a00889920	   Added power savings tricks when running on battery for ESP8266
+//  2020-08-24  a00889920      Adding suuport for device to request OTA updates for devices that sleep most of the time
 //*******************************************************************************
 
 #ifndef __SMARTTHINGSESP8266WIFI_H__
@@ -24,6 +25,8 @@
 //*******************************************************************************
 #include <ESP8266WiFi.h>
 #include <ArduinoOTA.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
 
 namespace st
 {
@@ -40,6 +43,10 @@ namespace st
 		long RSSIsendInterval;
 		char st_devicename[50];
 		boolean m_runningOnBattery = false;
+		
+		boolean m_enableOnDemandOTAUpdated = false;
+		int FW_VERSION = 1;
+		String FW_ServerUrl;
 
 		// The ESP8266 RTC memory is arranged into blocks of 4 bytes. The access methods read and write 4 bytes at a time,
 		// so the RTC data structure should be padded to a 4-byte multiple.
@@ -54,6 +61,16 @@ namespace st
 		/// Calculate CRC32
 		//*******************************************************************************
 		uint32_t calculateCRC32(const uint8_t *data, size_t length);
+
+		//*******************************************************************************
+		/// Performs OTA on demand update using firmware files in a local server
+		//*******************************************************************************
+		void checkForOnDemandOTAUpdates();
+
+		//*******************************************************************************
+		/// Gets MAC address in a format for OTA on demand updates
+		//*******************************************************************************
+		String getMAC();
 
 	public:
 
@@ -72,9 +89,31 @@ namespace st
 		///   @param[in] shieldType (optional) - Set the Reported SheildType to the Server
 		///   @param[in] enableDebug (optional) - Enable internal Library debug
 		///   @param[in] transmitInterval (optional) - Interval for transmiting
-		///   @param[in] runningOnBattery (optional) - Enable battery power saving tricks
 		//*******************************************************************************
-		SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType = "ESP8266Wifi", bool enableDebug = false, int transmitInterval = 500, bool runningOnBattery = false);
+		SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType = "ESP8266Wifi", bool enableDebug = false, int transmitInterval = 500);
+
+		//*******************************************************************************
+		/// @brief  SmartThings ESP8266 WiFi Constructor - Static IP
+		///   @param[in] ssid - Wifi Network SSID
+		///   @param[in] password - Wifi Network Password
+		///   @param[in] localIP - TCP/IP Address of the Arduino
+		///   @param[in] localGateway - TCP/IP Gateway Address of local LAN (your Router's LAN Address)
+		///   @param[in] localSubnetMask - Subnet Mask of the Arduino
+		///   @param[in] localDNSServer - DNS Server
+		///   @param[in] serverPort - TCP/IP Port of the Arduino
+		///   @param[in] hubIP - TCP/IP Address of the ST Hub
+		///   @param[in] hubPort - TCP/IP Port of the ST Hub
+		///   @param[in] callout - Set the Callout Function that is called on Msg Reception
+		///   @param[in] shieldType (optional) - Set the Reported SheildType to the Server
+		///   @param[in] enableDebug (optional) - Enable internal Library debug
+		///   @param[in] transmitInterval (optional) - Interval for transmiting
+		///   @param[in] runningOnBattery (optional) - Enable battery power saving tricks
+		///   @param[in] enableOnDemandOTAUpdated (optional) - Enable on demand OTA updates after init
+		///   @param[in] firmwareVersion (optional) - Sketch Firmware version number used for on demand OTA
+		///   @param[in] firmwareServerUrl (optional) - Server URL hosting firmware files to be used for on demand OTA
+		//*******************************************************************************
+		SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType = "ESP8266Wifi", bool enableDebug = false, int transmitInterval = 500, bool runningOnBattery = false, bool enableOnDemandOTAUpdated = false, int firmwareVersion = 1, String firmwareServerUrl = "");
+
 
 		//*******************************************************************************
 		/// @brief  SmartThings ESP8266 WiFi Constructor - DHCP
