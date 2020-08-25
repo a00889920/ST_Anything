@@ -21,6 +21,7 @@
 //    2020-08-06  Allan (vseven) Added support for BlueTooth logging
 //    2020-08-10  Allan (vseven) Added support for deep sleep on the ESP32
 //    2020-08-22  a00889920      Added power savings to ESP8266 to be more efficient when running on batteries
+//    2020-08-24  a00889920      Adding on demand OTA updates
 //
 //   Special thanks to Joshua Spain for his contributions in porting ST_Anything to the ESP32!
 //
@@ -82,6 +83,13 @@ IPAddress subnet(255, 255, 255, 0);   //LAN subnet mask         //  <---You must
 IPAddress dnsserver(192, 168, 1, 1);  //DNS server              //  <---You must edit this line!
 const unsigned int serverPort = 8090; // port to run the http server on
 
+String firmwareServerUrl = "http://192.168.0.1/FirmwareOTA/";
+const int firmwareVersion = 100; // 32 bit integer, max 65,536
+bool enableOnDemandOTAUpdated = true;
+bool runningOnBattery = true;
+bool enableESP8266WiFiDebug = true;
+
+
 // Smarthings Hub Information
 IPAddress hubIp(192, 168, 1, 149);  // smartthings hub ip       //  <---You must edit this line!
 const unsigned int hubPort = 39500; // smartthings hub port
@@ -130,8 +138,8 @@ void setup()
   //*****************************************************************************
   //Create the SmartThings ESP8266WiFi Communications Object
     //STATIC IP Assignment - Recommended
-    st::Everything::SmartThing = new st::SmartThingsESP8266WiFi(str_ssid, str_password, ip, gateway, subnet, dnsserver, serverPort, hubIp, hubPort, st::receiveSmartString, "ESP8266Wifi", true /*enableDebug*/, 500 /*transmitInterval*/, true /*runningOnBattery*/);
-    
+    st::Everything::SmartThing = new st::SmartThingsESP8266WiFi(str_ssid, str_password, ip, gateway, subnet, dnsserver, serverPort, hubIp, hubPort, st::receiveSmartString, "ESP8266Wifi", enableESP8266WiFiDebug, 500 /*transmitInterval*/, runningOnBattery, enableOnDemandOTAUpdated, firmwareVersion, firmwareServerUrl);
+
     //DHCP IP Assigment - Must set your router's DHCP server to provice a static IP address for this device's MAC address
     //st::Everything::SmartThing = new st::SmartThingsESP8266WiFi(str_ssid, str_password, serverPort, hubIp, hubPort, st::receiveSmartString);
 
@@ -205,6 +213,11 @@ void setup()
   Serial.flush(); 
   delay(1000);
   
+  // Reporting firmware version
+  if (enableOnDemandOTAUpdated){
+    String firmwareVersionString("Frimware " + firmwareVersion);
+    st::Everything::sendSmartString(firmwareVersionString);
+  }
   st::Everything::deepSleep(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 }
 

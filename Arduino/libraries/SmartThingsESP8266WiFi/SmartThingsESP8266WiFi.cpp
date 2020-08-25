@@ -15,6 +15,7 @@
 //  2019-06-25  Dan Ogorchock  Fix default hostname to not use underscore character
 //  2020-08-22  a00889920	   Added power savings tricks when running on battery for ESP8266
 //  2020-08-22  a00889920	   Moved most serial.println to only be displayed when _isDebugEnabled is true
+//  2020-08-24  a00889920      Adding suuport for device to request OTA updates for devices that sleep most of the time
 //*******************************************************************************
 
 #include "SmartThingsESP8266WiFi.h"
@@ -24,10 +25,24 @@ namespace st
 	//*******************************************************************************
 	// SmartThingsESP8266WiFI Constructor - Static IP
 	//*******************************************************************************
-	SmartThingsESP8266WiFi::SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType, bool enableDebug, int transmitInterval, bool runningOnBattery) :
+	SmartThingsESP8266WiFi::SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType, bool enableDebug, int transmitInterval) :
+		SmartThingsEthernet(localIP, localGateway, localSubnetMask, localDNSServer, serverPort, hubIP, hubPort, callout, shieldType, enableDebug, transmitInterval, false),
+		st_server(serverPort)
+	{
+		ssid.toCharArray(st_ssid, sizeof(st_ssid));
+		password.toCharArray(st_password, sizeof(st_password));
+	}
+
+	//*******************************************************************************
+	// SmartThingsESP8266WiFI Constructor for Battery powered devices - Static IP
+	//*******************************************************************************
+	SmartThingsESP8266WiFi::SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType, bool enableDebug, int transmitInterval, bool runningOnBattery, bool enableOnDemandOTAUpdated, int firmwareVersion, String firmwareServerUrl) :
 		SmartThingsEthernet(localIP, localGateway, localSubnetMask, localDNSServer, serverPort, hubIP, hubPort, callout, shieldType, enableDebug, transmitInterval, false),
 		st_server(serverPort),
-		m_runningOnBattery(runningOnBattery)
+		m_runningOnBattery(runningOnBattery),
+		m_enableOnDemandOTAUpdated(enableOnDemandOTAUpdated),
+		FW_VERSION(firmwareVersion),
+		FW_ServerUrl(firmwareServerUrl)
 	{
 		if (m_runningOnBattery)
 		{
@@ -311,43 +326,50 @@ namespace st
 		RSSIsendInterval = 5000;
 		previousMillis = millis() - RSSIsendInterval;
 
-		// Setup OTA Updates
+		if (m_enableOnDemandOTAUpdated)
+		{
+			checkForOnDemandOTAUpdates();
+		}
+		else
+		{
+			// Setup OTA Updates
 
-		// Port defaults to 8266
-		// ArduinoOTA.setPort(8266);
+			// Port defaults to 8266
+			// ArduinoOTA.setPort(8266);
 
-		// Hostname defaults to esp8266-[ChipID]
-		ArduinoOTA.setHostname(st_devicename);
+			// Hostname defaults to esp8266-[ChipID]
+			ArduinoOTA.setHostname(st_devicename);
 
-		// No authentication by default
-		//ArduinoOTA.setPassword((const char*)"123");
+			// No authentication by default
+			//ArduinoOTA.setPassword((const char*)"123");
 
-		ArduinoOTA.onStart([]() {
-			Serial.println("Start");
-		});
-		ArduinoOTA.onEnd([]() {
-			Serial.println("\nEnd");
-		});
-		ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-			Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-		});
-		ArduinoOTA.onError([](ota_error_t error) {
-			Serial.printf("Error[%u]: ", error);
-			if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-			else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-			else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-			else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-			else if (error == OTA_END_ERROR) Serial.println("End Failed");
-		});
-		ArduinoOTA.begin();
+			ArduinoOTA.onStart([]() {
+				Serial.println("Start");
+			});
+			ArduinoOTA.onEnd([]() {
+				Serial.println("\nEnd");
+			});
+			ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+				Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+			});
+			ArduinoOTA.onError([](ota_error_t error) {
+				Serial.printf("Error[%u]: ", error);
+				if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+				else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+				else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+				else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+				else if (error == OTA_END_ERROR) Serial.println("End Failed");
+			});
+			ArduinoOTA.begin();
 
-		if (_isDebugEnabled) {
-			Serial.println("ArduinoOTA Ready");
-			Serial.print("IP address: ");
-			Serial.println(WiFi.localIP());
-			Serial.print("ArduionOTA Host Name: ");
-			Serial.println(ArduinoOTA.getHostname());
-			Serial.println();
+			if (_isDebugEnabled) {
+				Serial.println("ArduinoOTA Ready");
+				Serial.print("IP address: ");
+				Serial.println(WiFi.localIP());
+				Serial.print("ArduionOTA Host Name: ");
+				Serial.println(ArduinoOTA.getHostname());
+				Serial.println();
+			}
 		}
 	}
 
@@ -620,5 +642,93 @@ namespace st
 		}
 
 		return crc;
+	}
+
+	//*******************************************************************************
+	/// On demand Self Updating OTA
+	//*******************************************************************************
+	void SmartThingsESP8266WiFi::checkForOnDemandOTAUpdates() {
+		// Each device has its own MAC Address
+		// The server will have one file per device with format MACAddress.version
+		// Which contains a single 32bit integer, nothing else
+		// This will be used to compare current version and locate the new 
+		// firmaware we need to update to.
+		// NOTE: the new Sketch should set the FW_VERSION to match, otherwise
+		// we will be in a cycle updating each time it boots.
+
+		String mac = getMAC();
+		String fwURL = String( FW_ServerUrl );
+		fwURL.concat( mac );
+		String fwVersionURL = fwURL;
+		fwVersionURL.concat( ".version" );
+
+		if (_isDebugEnabled) {
+			Serial.println( "Checking for firmware updates." );
+			Serial.print( "MAC address: " );
+			Serial.println( mac );
+			Serial.print( "Firmware version URL: " );
+			Serial.println( fwVersionURL );
+		}
+
+		HTTPClient httpClient;
+		httpClient.begin( fwVersionURL );
+		int httpCode = httpClient.GET();
+		if( httpCode == 200 ) {
+			String newFWVersion = httpClient.getString();
+
+			if (_isDebugEnabled) {
+				Serial.print( "Current firmware version: " );
+				Serial.println( FW_VERSION );
+				Serial.print( "Available firmware version: " );
+				Serial.println( newFWVersion );
+			}
+
+			int newVersion = newFWVersion.toInt();
+
+			if( newVersion > FW_VERSION ) {
+				if (_isDebugEnabled) Serial.println( "Preparing to update" );
+
+				// Looking for Firmware file with format MACAddress-Version.bin
+				String fwImageURL = fwURL;
+				fwImageURL.concat( "-" );
+				fwImageURL.concat( newFWVersion );
+				fwImageURL.concat( ".bin" );
+				t_httpUpdate_return ret = ESPhttpUpdate.update( fwImageURL );
+
+				switch(ret) {
+					case HTTP_UPDATE_FAILED:
+					Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+					break;
+
+					case HTTP_UPDATE_NO_UPDATES:
+					Serial.println("HTTP_UPDATE_NO_UPDATES");
+					break;
+				}
+			}
+			else {
+				Serial.println( "Already on latest version" );
+			}
+		}
+		else {
+			if (_isDebugEnabled){
+				Serial.print( "Firmware version check failed, got HTTP response code " );
+				Serial.println( httpCode );
+			}
+		}
+		httpClient.end();
+	}
+
+
+	//*******************************************************************************
+	/// getMAC for OTA
+	//*******************************************************************************
+	String SmartThingsESP8266WiFi::getMAC()
+	{
+		uint8_t mac[6];
+		char result[14];
+
+		snprintf( result, sizeof( result ), "%02x%02x%02x%02x%02x%02x", mac[ 0 ], mac[ 1 ], mac[ 2 ], mac[ 3 ], mac[ 4 ], mac[ 5 ] );
+
+		return String( result );
 	}
 }
