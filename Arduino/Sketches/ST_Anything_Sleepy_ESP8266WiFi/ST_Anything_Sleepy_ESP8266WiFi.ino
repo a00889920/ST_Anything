@@ -8,6 +8,9 @@
 //            The ST_Anything library takes care of all of the work to schedule device updates
 //            as well as all communications with the ESP8266's WiFi.
 //
+//            After flashing the sketch, RST and D0 need to be connected for the ESP8266 to 
+//            be reset once the sleep time has completed
+//
 //            ST_Anything_Sleepy_ESP8266WiFi implements the following ST Capabilities as a demo of what is possible with a single ESP8266
 //              - 1 x Temperature Measurement device (Temperature from DHT22 device)
 //              - 1 x Humidity Measurement device (Humidity from DHT22 device)
