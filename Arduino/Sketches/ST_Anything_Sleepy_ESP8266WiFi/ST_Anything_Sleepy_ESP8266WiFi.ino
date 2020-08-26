@@ -86,8 +86,8 @@ IPAddress subnet(255, 255, 255, 0);   //LAN subnet mask         //  <---You must
 IPAddress dnsserver(192, 168, 1, 1);  //DNS server              //  <---You must edit this line!
 const unsigned int serverPort = 8090; // port to run the http server on
 
-String firmwareServerUrl = "http://192.168.0.1/FirmwareOTA/";
-const int firmwareVersion = 100; // 32 bit integer, max 65,536
+String firmwareServerUrl = "http://192.168.0.1/FirmwareOTA";   //  <---You must edit this line!  (do not add / at the end)
+const int firmwareVersion = 100; // 32 bit integer, max 65,536 //  <---You must edit this line! 
 bool enableOnDemandOTAUpdated = true;
 bool runningOnBattery = true;
 bool enableESP8266WiFiDebug = true;

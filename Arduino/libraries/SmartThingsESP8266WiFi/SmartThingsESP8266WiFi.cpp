@@ -649,18 +649,25 @@ namespace st
 	//*******************************************************************************
 	void SmartThingsESP8266WiFi::checkForOnDemandOTAUpdates() {
 		// Each device has its own MAC Address
-		// The server will have one file per device with format MACAddress.version
-		// Which contains a single 32bit integer, nothing else
+		// The server will have one folder per device with format MACAddress
+		// Inside the folder, there will be a latest.version file which contains
+		// a single 32bit integer, nothing else
 		// This will be used to compare current version and locate the new 
 		// firmaware we need to update to.
 		// NOTE: the new Sketch should set the FW_VERSION to match, otherwise
 		// we will be in a cycle updating each time it boots.
 
+		// Example: http://192.168.254.16/FirmwareOTA/0000d3fdff3f/latest.version
+		// Content: 1001
+		// http://192.168.254.16/FirmwareOTA/0000d3fdff3f/0000d3fdff3f-1000.bin
+		// http://192.168.254.16/FirmwareOTA/0000d3fdff3f/0000d3fdff3f-1001.bin
+
 		String mac = getMAC();
 		String fwURL = String( FW_ServerUrl );
+		fwURL.concat( "/" );
 		fwURL.concat( mac );
 		String fwVersionURL = fwURL;
-		fwVersionURL.concat( ".version" );
+		fwVersionURL.concat( "/latest.version" );
 
 		if (_isDebugEnabled) {
 			Serial.println( "Checking for firmware updates." );
@@ -690,9 +697,12 @@ namespace st
 
 				// Looking for Firmware file with format MACAddress-Version.bin
 				String fwImageURL = fwURL;
+				fwImageURL.concat( "/" );
+				fwImageURL.concat( mac );
 				fwImageURL.concat( "-" );
 				fwImageURL.concat( newFWVersion );
 				fwImageURL.concat( ".bin" );
+				if (_isDebugEnabled) Serial.println( "Using firmware file " +  fwImageURL);
 				t_httpUpdate_return ret = ESPhttpUpdate.update( fwImageURL );
 
 				switch(ret) {
