@@ -258,7 +258,9 @@ namespace st
 
 			// Write current connection info back to RTC
 			rtcData.channel = WiFi.channel();
-			memcpy( rtcData.bssid, WiFi.BSSID(), 6 ); // Copy 6 bytes of BSSID (AP's MAC address)
+			byte macAddressByte[6];
+			WiFi.macAddress(macAddressByte);
+			memcpy( rtcData.bssid, macAddressByte, 6 ); // Copy 6 bytes of BSSID (AP's MAC address)
 			rtcData.crc32 = calculateCRC32( ((uint8_t*)&rtcData) + 4, sizeof( rtcData ) - 4 );
 			ESP.rtcUserMemoryWrite( 0, (uint32_t*)&rtcData, sizeof( rtcData ) );
 
@@ -662,6 +664,10 @@ namespace st
 		// http://192.168.254.16/FirmwareOTA/0000d3fdff3f/0000d3fdff3f-1000.bin
 		// http://192.168.254.16/FirmwareOTA/0000d3fdff3f/0000d3fdff3f-1001.bin
 
+		// Report to device handler the firmware version
+		String strFWVersion = String("fwVersion ") + String(FW_VERSION);
+		send(strFWVersion);
+
 		String mac = getMAC();
 		String fwURL = String( FW_ServerUrl );
 		fwURL.concat( "/" );
@@ -734,11 +740,10 @@ namespace st
 	//*******************************************************************************
 	String SmartThingsESP8266WiFi::getMAC()
 	{
-		uint8_t mac[6];
 		char result[14];
 
-		snprintf( result, sizeof( result ), "%02x%02x%02x%02x%02x%02x", mac[ 0 ], mac[ 1 ], mac[ 2 ], mac[ 3 ], mac[ 4 ], mac[ 5 ] );
+		snprintf(result, sizeof(result), "%02x%02x%02x%02x%02x%02x", rtcData.bssid[0], rtcData.bssid[1], rtcData.bssid[2], rtcData.bssid[3], rtcData.bssid[4], rtcData.bssid[5]);
 
-		return String( result );
+		return String(result);
 	}
 }

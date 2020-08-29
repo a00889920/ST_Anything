@@ -216,11 +216,6 @@ void setup()
   Serial.flush(); 
   delay(1000);
   
-  // Reporting firmware version
-  if (enableOnDemandOTAUpdated){
-    String firmwareVersionString("Frimware " + firmwareVersion);
-    st::Everything::sendSmartString(firmwareVersionString);
-  }
   st::Everything::deepSleep(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 }
 
