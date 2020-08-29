@@ -36,14 +36,16 @@ namespace st
 	//*******************************************************************************
 	// SmartThingsESP8266WiFI Constructor for Battery powered devices - Static IP
 	//*******************************************************************************
-	SmartThingsESP8266WiFi::SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType, bool enableDebug, int transmitInterval, bool runningOnBattery, bool enableOnDemandOTAUpdated, int firmwareVersion, String firmwareServerUrl) :
+	SmartThingsESP8266WiFi::SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType, bool enableDebug, int transmitInterval, bool runningOnBattery, bool enableNetworkPersistance, bool enableOnDemandOTAUpdated, int firmwareVersion, String firmwareServerUrl) :
 		SmartThingsEthernet(localIP, localGateway, localSubnetMask, localDNSServer, serverPort, hubIP, hubPort, callout, shieldType, enableDebug, transmitInterval, false),
 		st_server(serverPort),
 		m_runningOnBattery(runningOnBattery),
+		m_enableNetworkPersistance(enableNetworkPersistance),
 		m_enableOnDemandOTAUpdated(enableOnDemandOTAUpdated),
 		FW_VERSION(firmwareVersion),
 		FW_ServerUrl(firmwareServerUrl)
 	{
+		startTimeMilis = millis();
 		if (m_runningOnBattery)
 		{
 			if (_isDebugEnabled) Serial.println("------------ preInit RUNNING_ON_BATTERY_DISABLE_WIFI_WHEN_WAKING_UP");
@@ -119,10 +121,12 @@ namespace st
 				WiFi.forceSleepWake();
 				yield();
 			}
+			
+			WiFi.mode(WIFI_STA);
 
 			if (st_DHCP == false)
 			{
-				if(m_runningOnBattery)
+				if(m_enableNetworkPersistance)
 				{
 					if (_isDebugEnabled) Serial.println("------------ RUNNING_ON_BATTERY_DISABLING_NETWORK_PERSISTANCE");
 					// Disabling network persistence
@@ -149,7 +153,7 @@ namespace st
 				WiFi.config(st_localIP, st_localGateway, st_localSubnetMask, st_localDNSServer);
 			}
 
-			if(m_runningOnBattery)
+			if(m_enableNetworkPersistance)
 			{
 				if (_isDebugEnabled) Serial.println("------------ RUNNING_ON_BATTERY_WIFI_QUICK_CONNECT");
 			
@@ -213,7 +217,7 @@ namespace st
 			}
 		}
 
-		if(m_runningOnBattery)
+		if(m_enableNetworkPersistance)
 		{
 			// The loop waiting for the WiFi connection to be established becomes a little more complicated
 			// as we’ll have to consider the possibility that the WiFi access point has changed channels,
@@ -231,6 +235,7 @@ namespace st
 
 				if( retries == 100 ) {
 					// Quick connect is not working, reset WiFi and try regular connection
+					if (_isDebugEnabled)  Serial.println(" Reset WiFi and try regular connection");
 					WiFi.disconnect();
 					delay( 10 );
 					WiFi.forceSleepBegin();
@@ -242,28 +247,82 @@ namespace st
 
 				if( retries == 600 ) {
 					// Giving up after 30 seconds and going back to sleep
-					WiFi.disconnect( true );
-					delay( 1 );
+					if (_isDebugEnabled)  Serial.println(" Giving up, go to sleep");
 					WiFi.mode( WIFI_OFF );
-					ESP.deepSleep( 30 * 1000000, WAKE_RF_DISABLED );
+					deepSleep(30 * 1000000);
 					return; // Not expecting this to be called, the previous call will never return.
 				}
 
 				delay( 50 );
 				wifiStatus = WiFi.status();
+				if (_isDebugEnabled)  {
+					Serial.print(" Retry # ");
+					Serial.println(retries);
+				}
 			}
 
 			// Once the WiFi is connected, we can get the channel and BSSID and stuff it into the
 			// RTC memory, ready for the next time we wake up.
 
+			// TODO: Only write information into RTC Memory if it has changed
+
 			// Write current connection info back to RTC
-			rtcData.channel = WiFi.channel();
+			
 			byte macAddressByte[6];
 			WiFi.macAddress(macAddressByte);
-			memcpy( rtcData.bssid, macAddressByte, 6 ); // Copy 6 bytes of BSSID (AP's MAC address)
-			rtcData.crc32 = calculateCRC32( ((uint8_t*)&rtcData) + 4, sizeof( rtcData ) - 4 );
-			ESP.rtcUserMemoryWrite( 0, (uint32_t*)&rtcData, sizeof( rtcData ) );
 
+			if (_isDebugEnabled)  {
+				byte bssidddddd[6];  
+				memcpy( bssidddddd, WiFi.BSSID(), 6 );  
+				Serial.print("----------BSSID: ");
+				Serial.print(bssidddddd[0],HEX);
+				Serial.print(":");
+				Serial.print(bssidddddd[1],HEX);
+				Serial.print(":");
+				Serial.print(bssidddddd[2],HEX);
+				Serial.print(":");
+				Serial.print(bssidddddd[3],HEX);
+				Serial.print(":");
+				Serial.print(bssidddddd[4],HEX);
+				Serial.print(":");
+				Serial.println(bssidddddd[5],HEX);
+				
+
+				byte mac[6];
+				WiFi.macAddress(mac);
+				Serial.print("------------MAC: ");
+				Serial.print(mac[0],HEX);
+				Serial.print(":");
+				Serial.print(mac[1],HEX);
+				Serial.print(":");
+				Serial.print(mac[2],HEX);
+				Serial.print(":");
+				Serial.print(mac[3],HEX);
+				Serial.print(":");
+				Serial.print(mac[4],HEX);
+				Serial.print(":");
+				Serial.println(mac[5],HEX);
+			}
+
+			if (memcmp(macAddressByte, rtcData.mac, 6) == 0) {
+				if (_isDebugEnabled) Serial.println(" mac has changed");
+				memcpy( rtcData.mac, macAddressByte, 6 ); // Copy 6 bytes of MAC address
+			}
+			if (memcmp(rtcData.bssid, WiFi.BSSID(), 6)) {
+				if (_isDebugEnabled) Serial.println(" bssid has changed");
+				memcpy( rtcData.bssid, WiFi.BSSID(), 6 ); // Copy 6 bytes of BSSID (AP's MAC address)
+			}
+			if (rtcData.channel != WiFi.channel()) {
+				if (_isDebugEnabled) Serial.println(" wfi channel has changed");
+				rtcData.channel = WiFi.channel();
+			} 
+		
+			uint32_t crc = calculateCRC32( ((uint8_t*)&rtcData) + 4, sizeof( rtcData ) - 4 );
+			if( crc != rtcData.crc32 ) {
+				rtcData.crc32 = crc;
+				if (_isDebugEnabled)  Serial.println(" RTC memory has changed, updating it");
+				ESP.rtcUserMemoryWrite( 0, (uint32_t*)&rtcData, sizeof( rtcData ) );		
+			}
 		} else {
 			while (WiFi.status() != WL_CONNECTED) {
 				Serial.print(F("."));
@@ -322,8 +381,6 @@ namespace st
 			Serial.println(F("Disabling ESP8266 WiFi Access Point"));
 			Serial.println(F(""));
 		}
-
-		WiFi.mode(WIFI_STA);
 
 		RSSIsendInterval = 5000;
 		previousMillis = millis() - RSSIsendInterval;
@@ -594,6 +651,17 @@ namespace st
 	//*******************************************************************************
 	void SmartThingsESP8266WiFi::deepSleep(uint64_t time)
 	{
+		//if (_isDebugEnabled) {
+			long runTime = millis() - startTimeMilis;
+			Serial.println();
+			Serial.print("------------ Run time:");
+			Serial.println(runTime);
+		//}
+
+		// Report to device handler the run time
+		String strFRunTime = String("RunTime ") + String(runTime);
+		send(strFRunTime);
+
 		if(m_runningOnBattery)
 		{
 			// Using WAKE_RF_DISABLED
@@ -616,7 +684,6 @@ namespace st
 			yield();
 			
 			if (_isDebugEnabled) Serial.println("------------ WAKE_RF_DISABLED");
-
 			// WAKE_RF_DISABLED to keep the WiFi radio disabled when we wake up
 			ESP.deepSleep(time, WAKE_RF_DISABLED);
 		} else {
@@ -742,9 +809,11 @@ namespace st
 	//*******************************************************************************
 	String SmartThingsESP8266WiFi::getMAC()
 	{
+		byte mac[6];
+		WiFi.macAddress(mac);
 		char result[14];
 
-		snprintf(result, sizeof(result), "%02x%02x%02x%02x%02x%02x", rtcData.bssid[0], rtcData.bssid[1], rtcData.bssid[2], rtcData.bssid[3], rtcData.bssid[4], rtcData.bssid[5]);
+		snprintf(result, sizeof(result), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
 		return String(result);
 	}

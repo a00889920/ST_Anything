@@ -43,10 +43,13 @@ namespace st
 		long RSSIsendInterval;
 		char st_devicename[50];
 		boolean m_runningOnBattery = false;
+		boolean m_enableNetworkPersistance = false;
 		
 		boolean m_enableOnDemandOTAUpdated = false;
 		int FW_VERSION = 1;
 		String FW_ServerUrl;
+
+		long startTimeMilis;
 
 		// The ESP8266 RTC memory is arranged into blocks of 4 bytes. The access methods read and write 4 bytes at a time,
 		// so the RTC data structure should be padded to a 4-byte multiple.
@@ -54,7 +57,8 @@ namespace st
 			uint32_t crc32;   	// 4 bytes
 			uint8_t channel;  	// 1 byte,   5 in total
 			uint8_t bssid[6]; 	// 6 bytes, 11 in total
-			uint8_t padding;  	// 1 byte,  12 in total
+			uint8_t mac[6]; 	// 6 bytes, 17 in total
+			uint8_t padding;  	// 1 byte,  18 in total
 		} rtcData;
 
 		//*******************************************************************************
@@ -112,7 +116,7 @@ namespace st
 		///   @param[in] firmwareVersion (optional) - Sketch Firmware version number used for on demand OTA
 		///   @param[in] firmwareServerUrl (optional) - Server URL hosting firmware files to be used for on demand OTA
 		//*******************************************************************************
-		SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType = "ESP8266Wifi", bool enableDebug = false, int transmitInterval = 500, bool runningOnBattery = false, bool enableOnDemandOTAUpdated = false, int firmwareVersion = 1, String firmwareServerUrl = "");
+		SmartThingsESP8266WiFi(String ssid, String password, IPAddress localIP, IPAddress localGateway, IPAddress localSubnetMask, IPAddress localDNSServer, uint16_t serverPort, IPAddress hubIP, uint16_t hubPort, SmartThingsCallout_t *callout, String shieldType = "ESP8266Wifi", bool enableDebug = false, int transmitInterval = 500, bool runningOnBattery = false, bool enableNetworkPersistance = false, bool enableOnDemandOTAUpdated = false, int firmwareVersion = 1, String firmwareServerUrl = "");
 
 
 		//*******************************************************************************
