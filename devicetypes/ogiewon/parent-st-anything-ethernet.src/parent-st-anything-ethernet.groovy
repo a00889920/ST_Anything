@@ -44,7 +44,7 @@
  *    2020-04-18  Dan Ogorchock  Removed the Configuration capability and tile as it is no longer used
  *    2020-05-14  Dan Ogorchock  Removed 'defaultValue' fields on user unputs due to bug in ST Classic App for Android 
  *    2020-05-16  Dan Ogorchock  Added support for Sound Pressure Level device
- *
+ *    2020-08-28  a00889920      Added support to report firmware version
  *	
  */
  
@@ -98,7 +98,11 @@ metadata {
 				]
 			)
 		}
-        
+
+		valueTile("fwVersion", "device.fwVersion", width: 2, height: 2) {
+            state("fwVersion", label:'Firmware Version ${currentValue}')
+		}
+
 		standardTile("deleteChildren", "device.deleteChildren", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
 			state "default", label:'Delete Children', action: "deleteAllChildDevices", icon: "st.Seasonal Fall.seasonal-fall-008"
 		}
@@ -163,6 +167,13 @@ def parse(String description) {
 
 		if (name.startsWith("rssi")) {
 			//log.debug "In parse: RSSI name = ${name}, value = ${value}"
+           	results = createEvent(name: name, value: value, displayed: false)
+            log.debug results
+			return results
+        }
+
+		if (name.startsWith("fwVersion")) {
+			//log.debug "In parse: fwVersion name = ${name}, value = ${value}"
            	results = createEvent(name: name, value: value, displayed: false)
             log.debug results
 			return results
