@@ -380,8 +380,10 @@ namespace st
 	//*****************************************************************************
 	void SmartThingsESP8266WiFi::run(void)
 	{
-
-		ArduinoOTA.handle();
+		if (!m_enableOnDemandOTAUpdated)
+		{
+			ArduinoOTA.handle();
+		}
 
 		String readString;
 		String tempString;
