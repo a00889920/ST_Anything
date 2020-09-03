@@ -13,6 +13,7 @@
 //                             500ms to prevent duplicate child devices
 //  2020-08-22  a00889920	   Added power savings tricks when running on battery for ESP8266
 //  2020-08-24  a00889920      Adding suuport for device to request OTA updates for devices that sleep most of the time
+//  2020-09-02  a00889920      Moving OTA code to its own repo https://github.com/a00889920/OTAOnDemand_master
 //*******************************************************************************
 
 #ifndef __SMARTTHINGSESP8266WIFI_H__
@@ -27,6 +28,7 @@
 #include <ArduinoOTA.h>
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
+#include <OTAOnDemand.h>
 
 namespace st
 {
@@ -46,8 +48,7 @@ namespace st
 		boolean m_enableNetworkPersistance = false;
 		
 		boolean m_enableOnDemandOTAUpdated = false;
-		int FW_VERSION = 1;
-		String FW_ServerUrl;
+		OTAOnDemand otaOnDemand;
 
 		long startTimeMilis;
 

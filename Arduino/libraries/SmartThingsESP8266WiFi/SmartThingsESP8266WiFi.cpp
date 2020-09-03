@@ -16,6 +16,7 @@
 //  2020-08-22  a00889920	   Added power savings tricks when running on battery for ESP8266
 //  2020-08-22  a00889920	   Moved most serial.println to only be displayed when _isDebugEnabled is true
 //  2020-08-24  a00889920      Adding suuport for device to request OTA updates for devices that sleep most of the time
+//  2020-09-02  a00889920      Moving OTA code to its own repo https://github.com/a00889920/OTAOnDemand_master
 //*******************************************************************************
 
 #include "SmartThingsESP8266WiFi.h"
@@ -41,11 +42,12 @@ namespace st
 		st_server(serverPort),
 		m_runningOnBattery(runningOnBattery),
 		m_enableNetworkPersistance(enableNetworkPersistance),
-		m_enableOnDemandOTAUpdated(enableOnDemandOTAUpdated),
-		FW_VERSION(firmwareVersion),
-		FW_ServerUrl(firmwareServerUrl)
+		m_enableOnDemandOTAUpdated(enableOnDemandOTAUpdated)
 	{
 		startTimeMilis = millis();
+
+		otaOnDemand = OTAOnDemand(firmwareVersion, firmwareServerUrl, enableDebug);
+
 		if (m_runningOnBattery)
 		{
 			if (_isDebugEnabled) Serial.println("------------ preInit RUNNING_ON_BATTERY_DISABLE_WIFI_WHEN_WAKING_UP");
@@ -387,7 +389,11 @@ namespace st
 
 		if (m_enableOnDemandOTAUpdated)
 		{
-			checkForOnDemandOTAUpdates();
+			// Report to device handler the firmware version
+			String strFWVersion = String("fwVersion ") + String(otaOnDemand.getFirmwareVersion());
+			send(strFWVersion);
+			
+			otaOnDemand.checkForUpdates();
 		}
 		else
 		{
@@ -715,106 +721,4 @@ namespace st
 		return crc;
 	}
 
-	//*******************************************************************************
-	/// On demand Self Updating OTA
-	//*******************************************************************************
-	void SmartThingsESP8266WiFi::checkForOnDemandOTAUpdates() {
-		// Each device has its own MAC Address
-		// The server will have one folder per device with format MACAddress
-		// Inside the folder, there will be a latest.version file which contains
-		// a single 32bit integer, nothing else
-		// This will be used to compare current version and locate the new 
-		// firmaware we need to update to.
-		// NOTE: the new Sketch should set the FW_VERSION to match, otherwise
-		// we will be in a cycle updating each time it boots.
-
-		// Example: http://192.168.254.16/FirmwareOTA/0000d3fdff3f/latest.version
-		// Content: 1001
-		// http://192.168.254.16/FirmwareOTA/0000d3fdff3f/0000d3fdff3f-1000.bin
-		// http://192.168.254.16/FirmwareOTA/0000d3fdff3f/0000d3fdff3f-1001.bin
-
-		// Report to device handler the firmware version
-		String strFWVersion = String("fwVersion ") + String(FW_VERSION);
-		send(strFWVersion);
-
-		String mac = getMAC();
-		String fwURL = String( FW_ServerUrl );
-		fwURL.concat( "/" );
-		fwURL.concat( mac );
-		String fwVersionURL = fwURL;
-		fwVersionURL.concat( "/latest.version" );
-
-		if (_isDebugEnabled) {
-			Serial.println( "Checking for firmware updates." );
-			Serial.print( "MAC address: " );
-			Serial.println( mac );
-			Serial.print( "Firmware version URL: " );
-			Serial.println( fwVersionURL );
-		}
-
-		HTTPClient httpClient;
-		httpClient.begin( fwVersionURL );
-		int httpCode = httpClient.GET();
-		if( httpCode == 200 ) {
-			String newFWVersion = httpClient.getString();
-
-			if (_isDebugEnabled) {
-				Serial.print( "Current firmware version: " );
-				Serial.println( FW_VERSION );
-				Serial.print( "Available firmware version: " );
-				Serial.println( newFWVersion );
-			}
-
-			int newVersion = newFWVersion.toInt();
-
-			if( newVersion > FW_VERSION ) {
-				if (_isDebugEnabled) Serial.println( "Preparing to update" );
-
-				// Looking for Firmware file with format MACAddress-Version.bin
-				String fwImageURL = fwURL;
-				fwImageURL.concat( "/" );
-				fwImageURL.concat( mac );
-				fwImageURL.concat( "-" );
-				fwImageURL.concat( newFWVersion );
-				fwImageURL.concat( ".bin" );
-				if (_isDebugEnabled) Serial.println( "Using firmware file " +  fwImageURL);
-				t_httpUpdate_return ret = ESPhttpUpdate.update( fwImageURL );
-
-				switch(ret) {
-					case HTTP_UPDATE_FAILED:
-					Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
-					break;
-
-					case HTTP_UPDATE_NO_UPDATES:
-					Serial.println("HTTP_UPDATE_NO_UPDATES");
-					break;
-				}
-			}
-			else {
-				Serial.println( "Already on latest version" );
-			}
-		}
-		else {
-			if (_isDebugEnabled){
-				Serial.print( "Firmware version check failed, got HTTP response code " );
-				Serial.println( httpCode );
-			}
-		}
-		httpClient.end();
-	}
-
-
-	//*******************************************************************************
-	/// getMAC for OTA
-	//*******************************************************************************
-	String SmartThingsESP8266WiFi::getMAC()
-	{
-		byte mac[6];
-		WiFi.macAddress(mac);
-		char result[14];
-
-		snprintf(result, sizeof(result), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-
-		return String(result);
-	}
 }
