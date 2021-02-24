@@ -49,10 +49,6 @@ namespace st
 			m_bMoveActive = false;
 		}
 
-		if (!m_Servo.attached()) {
-			m_Servo.attach(m_nPinPWM, m_nMinPulseWidth, m_nMaxPulseWidth);
-		}
-
 		if ((m_nTargetAngle < m_nMinLevelAngle) and (m_nTargetAngle < m_nMaxLevelAngle)) {
 			if (m_nMinLevelAngle < m_nMaxLevelAngle) {
 				m_nTargetAngle = m_nMinLevelAngle;
@@ -69,7 +65,7 @@ namespace st
 				m_nTargetAngle = m_nMinLevelAngle;
 			}
 		}
-
+		
 		m_nTimeStep =  abs(m_nCurrentRate / (m_nMaxLevelAngle - m_nMinLevelAngle));  //Constant servo step rate assumes duration is the time desired for maximum level change of 100
 		m_nCurrentAngle = m_nOldAngle;             //preserver original angular position
 		m_bMoveActive = true;                      //start the move (the update() function will take care of the actual motion)
@@ -83,7 +79,7 @@ namespace st
 
 	//public
 	//constructor
-	EX_Servo::EX_Servo(const __FlashStringHelper *name, byte pinPWM, int startingAngle, bool detachAfterMove, long servoDetachTime, int minLevelAngle, int maxLevelAngle, int servoRate, int minPulseWidth, int maxPulseWidth) :
+	EX_Servo::EX_Servo(const __FlashStringHelper *name, byte pinPWM, int startingAngle, bool detachAfterMove, long servoDetachTime, int minLevelAngle, int maxLevelAngle, int servoRate, int currentLevel, int minPulseWidth, int maxPulseWidth) :
 		Executor(name),
 		m_Servo(),
 		m_nTargetAngle(startingAngle),
@@ -95,10 +91,13 @@ namespace st
 		m_bMoveActive(false),
 		m_bDetachTmrActive(false),
 		m_nMinPulseWidth(minPulseWidth),
-		m_nMaxPulseWidth(maxPulseWidth)
+		m_nMaxPulseWidth(maxPulseWidth),
+		m_nCurrentLevel(currentLevel)
 	{
 		setPWMPin(pinPWM);
-		m_nOldAngle = (minLevelAngle + maxLevelAngle) / 2;
+		// m_nOldAngle = (minLevelAngle + maxLevelAngle) / 2;
+		m_nOldAngle = m_nTargetAngle;
+		m_Servo.write(m_nTargetAngle);
 	}
 
 	//destructor
@@ -116,6 +115,11 @@ namespace st
 	void EX_Servo::update()
 	{
 		if (m_bMoveActive) {
+			
+			if (!m_Servo.attached()) {
+				m_Servo.attach(m_nPinPWM, m_nMinPulseWidth, m_nMaxPulseWidth);
+			}
+			
 			if ((millis() - m_nPrevMillis) > m_nTimeStep) {
 			    m_nPrevMillis = millis();
 				if (m_nCurrentAngle != m_nTargetAngle) {
