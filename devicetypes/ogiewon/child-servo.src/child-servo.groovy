@@ -111,11 +111,30 @@ def parse(String description) {
         sendEvent(name: "level",value: myValues[0].toInteger())
         sendEvent(name: "angle", value: myValues[1].toInteger())
         sendEvent(name: "rate", value: myValues[2].toInteger())
-        if (myValues[0].toInteger() <= offvalue){
-            sendEvent(name: "switch", value: "off")
+        
+        log.debug "valuessss " + offvalue + onvalue
+        
+        if (offvalue > onvalue)
+        {
+        	if (myValues[0].toInteger() <= onvalue){
+	            sendEvent(name: "switch", value: "on")
+                log.debug "switch on1"
+	        }
+	        else {
+	            sendEvent(name: "switch", value: "off")
+                log.debug "switch off1"
+	        }
         }
-        else {
-            sendEvent(name: "switch", value: "on")
+        else
+        {
+        	if (myValues[0].toInteger() <= offvalue){
+	            sendEvent(name: "switch", value: "off")
+                log.debug "switch off2"
+	        }
+	        else {
+	            sendEvent(name: "switch", value: "on")
+                log.debug "switch on2"
+	        }    
         }
 //      	// Update lastUpdated date and time
 //        def nowDay = new Date().format("MMM dd", location.timeZone)
