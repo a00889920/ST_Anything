@@ -1,34 +1,27 @@
 //******************************************************************************************
-//  File: ST_Anything_RGB_NeoPixelBus_ESP32WiFi.ino
+//  File: ST_Anything_Buttons_ESP8266WiFi.ino
 //  Authors: Dan G Ogorchock & Daniel J Ogorchock (Father and Son)
 //
 //  Summary:  This Arduino Sketch, along with the ST_Anything library and the revised SmartThings 
-//            library, demonstrates the ability of one ESP32 to implement 
-//            a multi input/output custom device for integration into SmartThings.
+//            library, demonstrates the ability of one NodeMCU ESP8266 to 
+//            implement a multi input/output custom device for integration with Hubitat.
 //            The ST_Anything library takes care of all of the work to schedule device updates
-//            as well as all communications with the ESP32's WiFi.
+//            as well as all communications with the NodeMCU ESP8266's WiFi.
 //
-//            ST_Anything_RGB_NeoPixelBus_ESP32WiFi implements the following ST Capabilities as a demo of what is possible with a single ESP32
-//              - 1 x RGB Addressable LED (used to set the color of a Programmable RGB LED strip)
-//
+//            ST_Anything_Buttons implements the following Hubitat Capabilities as a demo of what is possible with a single NodeMCU ESP8266
+//              - 7 x Button devices (sends "pushed" if held for less than 0.750 second, else sends "held")
 //    
 //  Change History:
 //
 //    Date        Who            What
 //    ----        ---            ----
-//    2017-08-14  Dan Ogorchock  Original Creation - Adapted from ESP8266 to work with ESP32 board
-//    2017-10-06  Allan (vseven) Modified for RGB example
-//    2017-10-13  Allan (vseven) Modified for RGBW example
-//    2018-02-09  Dan Ogorchock  Added support for Hubitat Elevation Hub
-//    2020-08-01  Allan (vseven) Modified for programmable LED's using the NeoPixelBus library
-//
-//   Special thanks to Joshua Spain for his contributions in porting ST_Anything to the ESP32!
+//    2020-09-30  Dan & Daniel   Original Creation
 //
 //******************************************************************************************
 //******************************************************************************************
-// SmartThings Library for ESP32WiFi
+// SmartThings Library for ESP8266WiFi
 //******************************************************************************************
-#include <SmartThingsESP32WiFi.h>
+#include <SmartThingsESP8266WiFi.h>
 
 //******************************************************************************************
 // ST_Anything Library 
@@ -41,80 +34,55 @@
 #include <PollingSensor.h>   //Generic Polling "Sensor" Class, polls Arduino pins periodically
 #include <Everything.h>      //Master Brain of ST_Anything library that ties everything together and performs ST Shield communications
 
-#include <EX_RGB_NeoPixelBus.h>      //Implements an Executor (EX) for a RGB LED strip using the NeoPixelBus library.  If you are only 
-                                     // using this library you can save yourself some space and comment out some of the type classes above except for Executor.
+#include <IS_Button.h>       //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin for button presses
 
-//******************************************************************************************
-// ESP32 BlueTooth serial monitor support.  Comment out if not needed.
-// Note: Adding BT support may require a larger partition.  Do this under Tool -> Partition Scheme -> Huge APP
-//       You will also need a computer with BlueTooth support or a BlueTooth app on your smart phone such 
-//       as "Serial BlueTooth Terminal" (https://play.google.com/store/apps/details?id=de.kai_morich.serial_bluetooth_terminal&hl=en_US)
-//******************************************************************************************
-//#include <BluetoothSerial.h>  //Header File for Serial Bluetooth
-//#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
-//#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
-//#endif
-//BluetoothSerial SerialBT;     //Object for Bluetooth
-
-//****************************************************************************************************************************
-//NodeMCU-32s ESP32 Pin Definitions (just for reference from ..hardware\espressif\esp32\variants\nodemcu-32s\pins_arduino.h)
-//****************************************************************************************************************************
-//#define LED_BUILTIN 2
-//#define BUILTIN_LED 2
+//*************************************************************************************************
+//NodeMCU v1.0 ESP8266-12e Pin Definitions (makes it much easier as these match the board markings)
+// DO NOT UNCOMMENT THESE LINES - for reference only
+//*************************************************************************************************
+//#define LED_BUILTIN 16
+//#define BUILTIN_LED 16
 //
-//#define A0 = 36;
-//#define A3 = 39;
-//#define A4 = 32;
-//#define A5 = 33;
-//#define A6 = 34;
-//#define A7 = 35;
-//#define A10 = 4;
-//#define A11 = 0;
-//#define A12 = 2;
-//#define A13 = 15;
-//#define A14 = 13;
-//#define A15 = 12;
-//#define A16 = 14;
-//#define A17 = 27;
-//#define A18 = 25;
-//#define A19 = 26;
+//#define D0 16  //no internal pullup resistor
+//#define D1  5
+//#define D2  4
+//#define D3  0  //must not be pulled low during power on/reset, toggles value during boot
+//#define D4  2  //must not be pulled low during power on/reset, toggles value during boot
+//#define D5 14
+//#define D6 12
+//#define D7 13
+//#define D8 15  //must not be pulled high during power on/reset
 
 //******************************************************************************************
 //Define which Arduino Pins will be used for each device
 //******************************************************************************************
-//"RESERVED" pins for ESP32 - best to avoid
-#define PIN_0_RESERVED             0  //reserved ESP32 boot/program upload
-#define PIN_1_RESERVED             1  //reserved ESP32 for TX0
-#define PIN_3_RESERVED             3  //reserved ESP32 for RX0
-#define PIN_6_RESERVED             6  //reserved ESP32 for flash
-#define PIN_7_RESERVED             7  //reserved ESP32 for flash
-#define PIN_8_RESERVED             8  //reserved ESP32 for flash
-#define PIN_9_RESERVED             9  //reserved ESP32 for flash
-#define PIN_10_RESERVED           10  //reserved ESP32 for flash
-#define PIN_11_RESERVED           11  //reserved ESP32 for flash
 
-//Analog Pins
-
-//Digital Pins
-#define PIN_RGB1          25  //(GPIO 25) SmartThings Capability "Color Control"
+#define PIN_BUTTON_1              D1  //Hubitat Capabilities - Pushable Button/Holdable Button/Releasable Button (Normally Open!)
+#define PIN_BUTTON_2              D2  //Hubitat Capabilities - Pushable Button/Holdable Button/Releasable Button (Normally Open!)
+#define PIN_BUTTON_3              D3  //Hubitat Capabilities - Pushable Button/Holdable Button/Releasable Button (Normally Open!)
+#define PIN_BUTTON_4              D4  //Hubitat Capabilities - Pushable Button/Holdable Button/Releasable Button (Normally Open!)
+#define PIN_BUTTON_5              D5  //Hubitat Capabilities - Pushable Button/Holdable Button/Releasable Button (Normally Open!)
+#define PIN_BUTTON_6              D6  //Hubitat Capabilities - Pushable Button/Holdable Button/Releasable Button (Normally Open!)
+#define PIN_BUTTON_7              D7  //Hubitat Capabilities - Pushable Button/Holdable Button/Releasable Button (Normally Open!)
 
 //******************************************************************************************
-//ESP32 WiFi Information
+//ESP8266 WiFi Information
 //******************************************************************************************
 String str_ssid     = "yourSSIDhere";                           //  <---You must edit this line!
 String str_password = "yourWiFiPasswordhere";                   //  <---You must edit this line!
-IPAddress ip(192, 168, 1, 34);       //Device IP Address       //  <---You must edit this line!
+IPAddress ip(192, 168, 1, 227);       //Device IP Address       //  <---You must edit this line!
 IPAddress gateway(192, 168, 1, 1);    //Router gateway          //  <---You must edit this line!
 IPAddress subnet(255, 255, 255, 0);   //LAN subnet mask         //  <---You must edit this line!
 IPAddress dnsserver(192, 168, 1, 1);  //DNS server              //  <---You must edit this line!
 const unsigned int serverPort = 8090; // port to run the http server on
 
-// Smartthings / Hubitat Hub TCP/IP Address
-IPAddress hubIp(192, 168, 1, 30);    // smartthings/hubitat hub ip //  <---You must edit this line!
+// Smarthings Hub Information
+//IPAddress hubIp(192, 168, 1, 149);  // smartthings hub ip       //  <---You must edit this line!
+//const unsigned int hubPort = 39500; // smartthings hub port
 
-// SmartThings / Hubitat Hub TCP/IP Address: UNCOMMENT line that corresponds to your hub, COMMENT the other
-const unsigned int hubPort = 39500;   // smartthings hub port
-//const unsigned int hubPort = 39501;   // hubitat hub port
+// Hubitat Hub Information
+IPAddress hubIp(192, 168, 1, 143);    // hubitat hub ip         //  <---You must edit this line!
+const unsigned int hubPort = 39501;   // hubitat hub port
 
 //******************************************************************************************
 //st::Everything::callOnMsgSend() optional callback routine.  This is a sniffer to monitor 
@@ -123,12 +91,9 @@ const unsigned int hubPort = 39500;   // smartthings hub port
 //******************************************************************************************
 void callback(const String &msg)
 {
-//  String strTemp = msg;
 //  Serial.print(F("ST_Anything Callback: Sniffed data = "));
 //  Serial.println(msg);
-//  SerialBT.print(F("ST_Anything Callback: Sniffed data = "));  // BlueTooth monitoring
-//  SerialBT.println(msg);
-
+  
   //TODO:  Add local logic here to take action when a device's value/state is changed
   
   //Masquerade as the ThingShield to send data to the Arduino, as if from the ST Cloud (uncomment and edit following line)
@@ -160,11 +125,17 @@ void setup()
   //Polling Sensors
   
   //Interrupt Sensors 
-  
+  static st::IS_Button              sensor1(F("button1"), PIN_BUTTON_1, 750, LOW, true, 500);
+  static st::IS_Button              sensor2(F("button2"), PIN_BUTTON_2, 750, LOW, true, 500);
+  static st::IS_Button              sensor3(F("button3"), PIN_BUTTON_3, 750, LOW, true, 500);
+  static st::IS_Button              sensor4(F("button4"), PIN_BUTTON_4, 750, LOW, true, 500);
+  static st::IS_Button              sensor5(F("button5"), PIN_BUTTON_5, 750, LOW, true, 500);
+  static st::IS_Button              sensor6(F("button6"), PIN_BUTTON_6, 750, LOW, true, 500);
+  static st::IS_Button              sensor7(F("button7"), PIN_BUTTON_7, 750, LOW, true, 500);
+
   //Special sensors/executors (uses portions of both polling and executor classes)
   
   //Executors
-  static st::EX_RGB_NeoPixelBus         executor1(F("rgbSwitch1"), 60, PIN_RGB1);  
   
   //*****************************************************************************
   //  Configure debug print output from each main class 
@@ -184,12 +155,12 @@ void setup()
   //Initialize the optional local callback routine (safe to comment out if not desired)
   st::Everything::callOnMsgSend = callback;
   
-  //Create the SmartThings ESP32WiFi Communications Object
+  //Create the SmartThings ESP8266WiFi Communications Object
     //STATIC IP Assignment - Recommended
-    st::Everything::SmartThing = new st::SmartThingsESP32WiFi(str_ssid, str_password, ip, gateway, subnet, dnsserver, serverPort, hubIp, hubPort, st::receiveSmartString);
+    st::Everything::SmartThing = new st::SmartThingsESP8266WiFi(str_ssid, str_password, ip, gateway, subnet, dnsserver, serverPort, hubIp, hubPort, st::receiveSmartString, "OfficeESP");
  
     //DHCP IP Assigment - Must set your router's DHCP server to provice a static IP address for this device's MAC address
-    //st::Everything::SmartThing = new st::SmartThingsESP32WiFi(str_ssid, str_password, serverPort, hubIp, hubPort, st::receiveSmartString);
+    //st::Everything::SmartThing = new st::SmartThingsESP8266WiFi(str_ssid, str_password, serverPort, hubIp, hubPort, st::receiveSmartString);
 
   //Run the Everything class' init() routine which establishes WiFi communications with SmartThings Hub
   st::Everything::init();
@@ -197,27 +168,23 @@ void setup()
   //*****************************************************************************
   //Add each sensor to the "Everything" Class
   //*****************************************************************************
+  st::Everything::addSensor(&sensor1);
+  st::Everything::addSensor(&sensor2);
+  st::Everything::addSensor(&sensor3);
+  st::Everything::addSensor(&sensor4); 
+  st::Everything::addSensor(&sensor5); 
+  st::Everything::addSensor(&sensor6); 
+  st::Everything::addSensor(&sensor7);    
       
   //*****************************************************************************
   //Add each executor to the "Everything" Class
   //*****************************************************************************
-  st::Everything::addExecutor(&executor1);
-      
+    
   //*****************************************************************************
   //Initialize each of the devices which were added to the Everything Class
   //*****************************************************************************
   st::Everything::initDevices();
-
-  //*****************************************************************************
-  //Enable Bluetooth serial monitoring.  Uncomment to use.
-  //*****************************************************************************
-  //Serial.begin(115200);
-  //SerialBT.register_callback(callback);
-  //if(!SerialBT.begin("ESP32_ST_Anything")){  //Name of your Bluetooth Signal.  Use a unique name if you have multiple devices
-  //  Serial.println("An error occurred initializing Bluetooth");
-  //}else{
-  //  Serial.println("Bluetooth Device is Ready to Pair");
-  //}
+  
 }
 
 //******************************************************************************************
@@ -229,22 +196,4 @@ void loop()
   //Execute the Everything run method which takes care of "Everything"
   //*****************************************************************************
   st::Everything::run();
-  
 }
-
-// Callback routine for BlueTooth.  Uncomment to enable
-//void callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param){
-//  if(event == ESP_SPP_SRV_OPEN_EVT){
-//    Serial.println("Client Connected to BlueTooth!");
-//    Serial.print("Client address is: ");
-//     for (int i = 0; i < 6; i++) {
-//      Serial.printf("%02X", param->srv_open.rem_bda[i]);
-//      if (i < 6) {
-//        Serial.print(":");
-//      }
-//     }
-//  }
-//  if(event == ESP_SPP_CLOSE_EVT ){
-//    Serial.println("Client disconnected from BlueTooth");
-//  }
-// }

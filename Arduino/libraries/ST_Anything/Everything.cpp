@@ -27,6 +27,8 @@
 //    2019-02-24  Dan Ogorchock  Added new special callOnMsgRcvd2 callback capability. Allows recvd string to be manipulated in the sketch before being processed by Everything.
 //    2020-08-22  a00889920      Added deepSleep() function
 //    
+//    2021-01-31  Marcus van Ierssel Improved the automatic refresh to prevent it from blocking other updates.
+//
 //******************************************************************************************
 
 //#include <Arduino.h>
@@ -113,19 +115,40 @@ namespace st
 	
 	void Everything::refreshDevices()
 	{
+		static int refresh_Executor = 0;
+		static int refresh_Sensor = 0;
+		/*
 		for(unsigned int i=0; i<m_nExecutorCount; ++i)
 		{
-			m_Executors[i]->refresh();
-			sendStrings();
+				m_Executors[i]->refresh();
+				sendStrings();
 		}
 
 		for (unsigned int i = 0; i<m_nSensorCount; ++i)
 		{
-			m_Sensors[i]->refresh();
+				m_Sensors[i]->refresh();
+				sendStrings();
+		}
+		*/
+		if (refresh_Executor < m_nExecutorCount) {
+			m_Executors[refresh_Executor]->refresh();
 			sendStrings();
+			refresh_Executor++;
+			refLastMillis = millis() - long(Constants::DEV_REFRESH_INTERVAL) * 1000 + 4 * SmartThing->getTransmitInterval();
+		}
+		else if (refresh_Sensor < m_nSensorCount) {
+			m_Sensors[refresh_Sensor]->refresh();
+			sendStrings();
+			refresh_Sensor++;
+			refLastMillis = millis() - long(Constants::DEV_REFRESH_INTERVAL) * 1000 + 4 * SmartThing->getTransmitInterval();
+		}
+		else {
+			refLastMillis = millis();
+			refresh_Executor = 0;
+			refresh_Sensor = 0;
 		}
 	}
-	
+
 //public
 	void Everything::init()
 	{
@@ -214,7 +237,7 @@ namespace st
 		#ifndef DISABLE_REFRESH		//Added new check to allow user to disable REFRESH feature - setting is in Constants.h)
 		if ((bTimersPending == 0) && ((millis() - refLastMillis) >= long(Constants::DEV_REFRESH_INTERVAL) * 1000))  //DEV_REFRESH_INTERVAL is set in Constants.h
 		{
-			refLastMillis = millis();
+			//refLastMillis = millis();
 			refreshDevices();	//call each st::Device object to refresh data (this is just a safeguard to ensure the state of the Arduino and the ST Cloud stay in synch should an event be missed)
 		}
 		#endif
